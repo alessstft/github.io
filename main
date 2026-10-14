@@ -1,0 +1,1500 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PowerPoint в SCORM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{
+  --bg:#E9EDF4; --surface:#FFFFFF; --sunken:#F3F5F9; --ink:#17203A; --muted:#566079;
+  --line:#CDD4E1; --accent:#2B54E0; --accent-ink:#FFFFFF; --tape:#F0AE34; --warn:#9A5B00; --warn-bg:#FFF4DE;
+  --ok:#17794A; --err:#B3261E;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121725; --surface:#1B2234; --sunken:#151B2A; --ink:#E5E9F3; --muted:#9AA4BC;
+    --line:#2E3850; --accent:#7D9BFF; --accent-ink:#0E1426; --tape:#E9A93A; --warn:#F2C26B; --warn-bg:#2D2513;
+    --ok:#5FD39A; --err:#FF8A80; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121725; --surface:#1B2234; --sunken:#151B2A; --ink:#E5E9F3; --muted:#9AA4BC;
+  --line:#2E3850; --accent:#7D9BFF; --accent-ink:#0E1426; --tape:#E9A93A; --warn:#F2C26B; --warn-bg:#2D2513;
+  --ok:#5FD39A; --err:#FF8A80; color-scheme: dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.55 "Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1120px;margin:0 auto;padding:40px 20px 64px}
+header h1{font:700 clamp(28px,5vw,48px)/1.05 Unbounded,"Golos Text",system-ui,sans-serif;letter-spacing:-.02em;margin:0 0 14px;max-width:16ch}
+header p{margin:0;color:var(--muted);max-width:60ch}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* Stack-of-slides drop zone */
+.drop{position:relative;margin:40px 0 0;max-width:720px}
+.drop::before,.drop::after{content:"";position:absolute;inset:0;border-radius:14px;z-index:0}
+.drop::before{background:var(--tape);transform:translate(14px,14px) rotate(1.2deg)}
+.drop::after{background:var(--accent);transform:translate(7px,7px) rotate(.5deg);opacity:.9}
+.drop label{position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;gap:10px;
+  padding:44px 36px;border-radius:14px;background:var(--surface);border:2px solid var(--ink);cursor:pointer;min-height:220px;justify-content:center;transition:transform .15s}
+.drop.over label{transform:translate(-4px,-4px)}
+.drop input{position:absolute;width:1px;height:1px;opacity:0}
+.drop input:focus-visible + label{outline:3px solid var(--accent);outline-offset:4px}
+.drop .big{font:500 22px/1.25 Unbounded,"Golos Text",sans-serif}
+.drop .small{color:var(--muted);font-size:15px}
+.drop .pick{margin-top:6px;display:inline-block;background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:999px;font-weight:600}
+.drop.busy label{cursor:progress}
+.status{margin:30px 0 0;min-height:1.5em;color:var(--muted)}
+.status.err{color:var(--err)}
+
+/* Results */
+#result{display:none;margin-top:48px;grid-template-columns:minmax(0,1fr) 340px;gap:32px;align-items:start}
+#result.on{display:grid}
+@media (max-width:880px){#result.on{grid-template-columns:1fr}}
+.step-h{display:flex;align-items:baseline;gap:12px;margin:0 0 16px}
+.step-h .n{font:700 15px/1 Unbounded,sans-serif;width:30px;height:30px;border-radius:50%;border:2px solid var(--ink);display:inline-flex;align-items:center;justify-content:center;flex:none}
+.step-h h2{font:500 20px/1.3 Unbounded,"Golos Text",sans-serif;margin:0}
+.meta{color:var(--muted);margin:-6px 0 18px;font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}
+.thumb{all:unset;cursor:zoom-in;display:block}
+.thumb:focus-visible .frame{outline:3px solid var(--accent);outline-offset:3px}
+.frame{position:relative;overflow:hidden;border-radius:6px;border:1px solid var(--line);background:#fff}
+.frame .holder{position:absolute;left:0;top:0;transform-origin:0 0}
+.thumb .cap{display:block;margin-top:6px;font-size:13px;color:var(--muted)}
+.thumb.hidden-slide .frame{opacity:.45}
+.warns{margin:24px 0 0;padding:16px 18px;border-radius:10px;background:var(--warn-bg);color:var(--warn);font-size:14.5px}
+.warns h3{margin:0 0 6px;font-size:15px;font-weight:600}
+.warns ul{margin:0;padding-left:18px}
+.warns li{margin:3px 0}
+
+aside.panel{position:sticky;top:calc(16px + env(safe-area-inset-top,0px));background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px}
+.field{margin:0 0 20px}
+.field > .lbl{display:block;font-weight:600;margin-bottom:8px;font-size:15px}
+.field input[type=text]{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--sunken)}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;padding:3px;background:var(--sunken)}
+.seg label{flex:1;position:relative}
+.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg span{display:block;text-align:center;padding:8px 6px;border-radius:7px;font-size:14.5px}
+.seg input:checked + span{background:var(--surface);box-shadow:0 0 0 1px var(--line);font-weight:600}
+.seg input:focus-visible + span{outline:3px solid var(--accent)}
+.radio{display:flex;gap:10px;align-items:flex-start;margin:6px 0;font-size:15px;cursor:pointer}
+.radio input{margin-top:4px;accent-color:var(--accent)}
+.hint{font-size:13.5px;color:var(--muted);margin-top:6px}
+.go{width:100%;border:0;border-radius:10px;padding:14px 16px;background:var(--accent);color:var(--accent-ink);font-weight:600;font-size:16px;cursor:pointer}
+.go:disabled{opacity:.6;cursor:progress}
+.again{all:unset;cursor:pointer;color:var(--accent);font-size:14.5px;margin-top:14px;display:inline-block;text-decoration:underline;text-underline-offset:3px}
+.done{margin-top:12px;font-size:14.5px;min-height:1.4em}
+.done.ok{color:var(--ok)} .done.err{color:var(--err)}
+
+.how{margin-top:72px;max-width:68ch;color:var(--muted);font-size:15px}
+.how h2{font:500 18px/1.3 Unbounded,"Golos Text",sans-serif;color:var(--ink);margin:0 0 10px}
+.how p{margin:0 0 10px}
+
+/* Lightbox */
+.lb{position:fixed;inset:0;z-index:50;background:rgba(10,14,26,.86);display:none;flex-direction:column;
+  padding:calc(12px + env(safe-area-inset-top,0px)) 12px calc(12px + env(safe-area-inset-bottom,0px))}
+.lb.on{display:flex}
+.lb .area{flex:1;position:relative;min-height:0}
+.lb .stage{position:absolute;left:50%;top:50%;background:#fff;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.lb .bar{display:flex;align-items:center;justify-content:center;gap:16px;padding-top:12px;color:#fff}
+.lb button{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:8px 14px;cursor:pointer}
+@media (prefers-reduced-motion: reduce){ .drop label{transition:none} }
+
+/* Slide rendering (shared with the SCORM player) */
+.slide{position:absolute;left:0;top:0;overflow:hidden;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;line-height:1.2;text-align:left}
+.slide .sh{position:absolute;box-sizing:border-box}
+.slide .geo{position:absolute;left:0;top:0;overflow:visible}
+.slide .fillbox{position:absolute;inset:0;background-size:cover;background-position:center}
+.slide .tx{position:absolute;inset:0;display:flex;flex-direction:column;box-sizing:border-box}
+.slide .tx p{margin:0;white-space:pre-wrap;overflow-wrap:break-word}
+.slide .imgbox{position:absolute;inset:0;overflow:hidden}
+.slide .imgbox img{position:absolute;display:block;max-width:none}
+.slide .imgbox video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+.slide table{border-collapse:collapse;table-layout:fixed}
+.slide td{box-sizing:border-box;overflow:hidden}
+.slide .miss{position:absolute;inset:0;border:2px dashed #9aa3b2;display:flex;align-items:center;justify-content:center;font:16px/1.3 Arial,sans-serif;color:#5b667a;background:rgba(240,242,246,.85);text-align:center;padding:8px}
+.slide a{color:inherit}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>PowerPoint в SCORM-пакет</h1>
+    <p>Загрузите презентацию .pptx и получите zip-архив, который можно загрузить в Moodle или любую другую LMS с поддержкой SCORM. Файл обрабатывается прямо в браузере и никуда не отправляется.</p>
+  </header>
+
+  <div class="drop" id="drop">
+    <input type="file" id="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation">
+    <label for="file">
+      <span class="big" id="dropBig">Перетащите сюда файл .pptx</span>
+      <span class="small" id="dropSmall">или выберите его на компьютере</span>
+      <span class="pick">Выбрать файл</span>
+    </label>
+  </div>
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+
+  <section id="result" aria-label="Результат">
+    <div>
+      <div class="step-h"><span class="n">2</span><h2>Проверьте слайды</h2></div>
+      <p class="meta" id="meta"></p>
+      <div class="grid" id="grid"></div>
+      <div class="warns" id="warns" hidden></div>
+    </div>
+    <aside class="panel">
+      <div class="step-h"><span class="n">3</span><h2>Настройте пакет</h2></div>
+      <div class="field">
+        <label class="lbl" for="title">Название курса</label>
+        <input type="text" id="title" maxlength="200">
+      </div>
+      <div class="field">
+        <span class="lbl" id="verLbl">Версия SCORM</span>
+        <div class="seg" role="radiogroup" aria-labelledby="verLbl">
+          <label><input type="radio" name="ver" value="1.2" checked><span>1.2</span></label>
+          <label><input type="radio" name="ver" value="2004"><span>2004</span></label>
+        </div>
+        <div class="hint">1.2 поддерживают почти все LMS. Выбирайте 2004, только если ваша система этого требует.</div>
+      </div>
+      <div class="field">
+        <span class="lbl">Курс засчитывается, когда</span>
+        <label class="radio"><input type="radio" name="crit" value="last" checked> <span>открыт последний слайд</span></label>
+        <label class="radio"><input type="radio" name="crit" value="all"> <span>просмотрены все слайды</span></label>
+      </div>
+      <div class="field">
+        <span class="lbl">Статус в LMS</span>
+        <label class="radio"><input type="radio" name="st" value="completed" checked> <span>«Завершён»</span></label>
+        <label class="radio"><input type="radio" name="st" value="passed"> <span>«Пройден» с оценкой 100</span></label>
+      </div>
+      <div class="field" id="hiddenField" hidden>
+        <label class="radio"><input type="checkbox" id="skipHidden" checked> <span id="hiddenTxt">Не включать скрытые слайды</span></label>
+      </div>
+      <button class="go" id="go" type="button">Скачать SCORM-пакет</button>
+      <p class="done" id="done" role="status" aria-live="polite"></p>
+      <button class="again" id="again" type="button">Загрузить другую презентацию</button>
+    </aside>
+  </section>
+
+  <section class="how">
+    <h2>Что переносится</h2>
+    <p>Текст с форматированием, фигуры, линии, картинки, таблицы, фоны и оформление из образца слайдов, ссылки и видео в формате MP4. Каждый слайд собирается в HTML, поэтому текст остаётся чётким на любом экране.</p>
+    <p>Анимации и переходы, диаграммы (charts), SmartArt, формулы и картинки EMF/WMF не переносятся: вместо них будет заглушка, а конвертер покажет, на каких слайдах это случилось. Если какой-то слайд выглядит не так, проще всего в PowerPoint сохранить проблемный объект как картинку и вставить её обратно.</p>
+    <p>Внутри пакета есть плеер с кнопками, стрелками на клавиатуре и полноэкранным режимом. Он запоминает, на каком слайде остановился слушатель, и передаёт в LMS статус прохождения.</p>
+  </section>
+</div>
+
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Просмотр слайда">
+  <div class="area" id="lbArea"><div class="stage" id="lbStage"></div></div>
+  <div class="bar">
+    <button type="button" id="lbPrev" aria-label="Предыдущий слайд">Назад</button>
+    <span id="lbCount"></span>
+    <button type="button" id="lbNext" aria-label="Следующий слайд">Вперёд</button>
+    <button type="button" id="lbClose">Закрыть</button>
+  </div>
+</div>
+
+<!-- ===== SCORM player template (copied into the package) ===== -->
+<script type="text/plain" id="tplPlayerCss">
+html,body{margin:0;height:100%;background:#1f2430;overflow:hidden}
+body{font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#fff}
+#app{position:absolute;inset:0;display:flex;flex-direction:column}
+#view{flex:1;position:relative;min-height:0}
+#stage{position:absolute;left:50%;top:50%;box-shadow:0 8px 30px rgba(0,0,0,.45);background:#fff}
+.slide{visibility:hidden;opacity:0}
+.slide.on{visibility:visible;opacity:1;transition:opacity .25s}
+@media (prefers-reduced-motion: reduce){.slide.on{transition:none}}
+#bar{flex:none;display:flex;align-items:center;gap:12px;padding:10px 14px;background:#151922}
+#bar button{background:#2c3342;border:1px solid #3c4559;color:#fff;border-radius:8px;padding:8px 14px;cursor:pointer;font:inherit}
+#bar button:hover{background:#363f52}
+#bar button:disabled{opacity:.4;cursor:default}
+#bar button:focus-visible{outline:3px solid #8fb0ff;outline-offset:2px}
+#count{min-width:70px;text-align:center;font-variant-numeric:tabular-nums}
+#prog{flex:1;height:6px;border-radius:3px;background:#2c3342;overflow:hidden}
+#prog i{display:block;height:100%;width:0;background:#7d9bff;transition:width .25s}
+#fs{margin-left:auto}
+</script>
+<script type="text/plain" id="tplPlayerJs">
+(function(){
+  var C = window.COURSE;
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var N = slides.length, cur = 0, viewed = [], i;
+  for (i = 0; i < N; i++) viewed.push(0);
+  var stage = document.getElementById('stage'), view = document.getElementById('view');
+  var prevB = document.getElementById('prev'), nextB = document.getElementById('next');
+  var countEl = document.getElementById('count'), progEl = document.querySelector('#prog i');
+  var v2004 = C.version === '2004';
+
+  /* ---------- SCORM API ---------- */
+  function scan(win) {
+    var name = v2004 ? 'API_1484_11' : 'API', tries = 0;
+    while (win && tries < 500) {
+      try { if (win[name]) return win[name]; } catch (e) { return null; }
+      if (win.parent && win.parent !== win) { win = win.parent; tries++; } else break;
+    }
+    return null;
+  }
+  var api = scan(window);
+  try { if (!api && window.opener) api = scan(window.opener); } catch (e) {}
+  try { if (!api && window.top && window.top.opener) api = scan(window.top.opener); } catch (e) {}
+  function call(m) { if (!api) return ''; try { return String(api[m].apply(api, Array.prototype.slice.call(arguments, 1))); } catch (e) { return ''; } }
+  function get(k) { return v2004 ? call('GetValue', k) : call('LMSGetValue', k); }
+  function set(k, v) { return v2004 ? call('SetValue', k, String(v)) : call('LMSSetValue', k, String(v)); }
+  function commit() { return v2004 ? call('Commit', '') : call('LMSCommit', ''); }
+  var K = v2004
+    ? { loc: 'cmi.location', susp: 'cmi.suspend_data', exit: 'cmi.exit', time: 'cmi.session_time' }
+    : { loc: 'cmi.core.lesson_location', susp: 'cmi.suspend_data', exit: 'cmi.core.exit', time: 'cmi.core.session_time' };
+
+  var completed = false;
+  if (api) {
+    if (v2004) call('Initialize', ''); else call('LMSInitialize', '');
+    var st = v2004 ? get('cmi.completion_status') : get('cmi.core.lesson_status');
+    if (st === 'completed' || st === 'passed') completed = true;
+    if (!completed) {
+      if (v2004) set('cmi.completion_status', 'incomplete');
+      else if (st === '' || st === 'not attempted') set('cmi.core.lesson_status', 'incomplete');
+    }
+    var sd = get(K.susp);
+    if (sd && /^[01]+$/.test(sd)) for (i = 0; i < N; i++) viewed[i] = sd.charAt(i) === '1' ? 1 : 0;
+    var loc = parseInt(get(K.loc), 10);
+    if (!isNaN(loc) && loc >= 0 && loc < N) cur = loc;
+    commit();
+  }
+
+  function markComplete() {
+    if (completed) return;
+    completed = true;
+    if (v2004) {
+      set('cmi.completion_status', 'completed');
+      if (C.status === 'passed') {
+        set('cmi.score.min', '0'); set('cmi.score.max', '100'); set('cmi.score.raw', '100'); set('cmi.score.scaled', '1');
+        set('cmi.success_status', 'passed');
+      }
+    } else {
+      if (C.status === 'passed') { set('cmi.core.score.min', '0'); set('cmi.core.score.max', '100'); set('cmi.core.score.raw', '100'); }
+      set('cmi.core.lesson_status', C.status === 'passed' ? 'passed' : 'completed');
+    }
+  }
+
+  /* ---------- Slides ---------- */
+  function show(n) {
+    if (n < 0 || n >= N) return;
+    slides[cur].classList.remove('on');
+    var vids = slides[cur].querySelectorAll('video,audio');
+    for (var j = 0; j < vids.length; j++) { try { vids[j].pause(); } catch (e) {} }
+    cur = n;
+    slides[cur].classList.add('on');
+    viewed[cur] = 1;
+    countEl.textContent = (cur + 1) + ' / ' + N;
+    prevB.disabled = cur === 0;
+    nextB.disabled = cur === N - 1;
+    var seen = 0; for (var k = 0; k < N; k++) seen += viewed[k];
+    progEl.style.width = (C.completion === 'all' ? seen / N : (cur + 1) / N) * 100 + '%';
+    if (C.completion === 'all' ? seen === N : cur === N - 1) markComplete();
+    if (api) { set(K.loc, cur); set(K.susp, viewed.join('')); commit(); }
+  }
+
+  function fit() {
+    var w = view.clientWidth, h = view.clientHeight;
+    var s = Math.min(w / C.w, h / C.h) * 0.98;
+    stage.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
+  }
+
+  prevB.onclick = function () { show(cur - 1); };
+  nextB.onclick = function () { show(cur + 1); };
+  document.addEventListener('keydown', function (e) {
+    var t = e.target && e.target.tagName;
+    if (t === 'INPUT' || t === 'TEXTAREA' || t === 'VIDEO') return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); show(cur + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(cur - 1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(N - 1);
+  });
+  var tx = null;
+  view.addEventListener('touchstart', function (e) { tx = e.touches[0].clientX; }, { passive: true });
+  view.addEventListener('touchend', function (e) {
+    if (tx === null) return;
+    var dx = e.changedTouches[0].clientX - tx; tx = null;
+    if (Math.abs(dx) > 50) show(cur + (dx < 0 ? 1 : -1));
+  });
+  var fsB = document.getElementById('fs');
+  var root = document.documentElement;
+  if (!root.requestFullscreen && !root.webkitRequestFullscreen) fsB.style.display = 'none';
+  fsB.onclick = function () {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else {
+      (root.requestFullscreen || root.webkitRequestFullscreen).call(root);
+    }
+  };
+  window.addEventListener('resize', fit);
+
+  /* ---------- Exit ---------- */
+  var t0 = Date.now(), finished = false;
+  function pad(n, l) { n = String(n); while (n.length < l) n = '0' + n; return n; }
+  function finish() {
+    if (finished || !api) return;
+    finished = true;
+    var sec = Math.round((Date.now() - t0) / 1000);
+    var h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
+    set(K.time, v2004 ? ('PT' + h + 'H' + m + 'M' + s + 'S') : (pad(h, 4) + ':' + pad(m, 2) + ':' + pad(s, 2)));
+    set(K.exit, completed ? (v2004 ? 'normal' : '') : 'suspend');
+    commit();
+    if (v2004) call('Terminate', ''); else call('LMSFinish', '');
+  }
+  window.addEventListener('pagehide', finish);
+  window.addEventListener('beforeunload', finish);
+
+  slides[cur].classList.add('on');
+  fit();
+  show(cur);
+})();
+</script>
+
+<script>
+(function(){
+"use strict";
+const A = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+const P = 'http://schemas.openxmlformats.org/presentationml/2006/main';
+const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+const EMU = 9525; // EMU per CSS px
+const IMG_OK = /\.(png|jpe?g|gif|bmp|svg|webp|avif)$/i;
+const VIDEO_OK = /\.(mp4|m4v|webm)$/i;
+const AUDIO_OK = /\.(mp3|m4a|wav|ogg)$/i;
+const MIME = {png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',bmp:'image/bmp',svg:'image/svg+xml',webp:'image/webp',avif:'image/avif',mp4:'video/mp4',m4v:'video/mp4',webm:'video/webm',mp3:'audio/mpeg',m4a:'audio/mp4',wav:'audio/wav',ogg:'audio/ogg'};
+
+/* ---------- XML helpers ---------- */
+const parseXml = s => new DOMParser().parseFromString(s, 'application/xml');
+const kids = (el, ns, n) => el ? Array.from(el.children).filter(c => c.localName === n && c.namespaceURI === ns) : [];
+const kid = (el, ns, n) => { if (!el) return null; for (const c of el.children) if (c.localName === n && c.namespaceURI === ns) return c; return null; };
+function q(el, ...steps){ for (const s of steps){ if (!el) return null; const i = s.indexOf(':'); el = kid(el, s.slice(0,i) === 'a' ? A : P, s.slice(i+1)); } return el; }
+const num = (el, attr, def) => { if (!el || !el.hasAttribute(attr)) return def; const v = parseFloat(el.getAttribute(attr)); return isNaN(v) ? def : v; };
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const px = v => +(v / EMU).toFixed(2);
+const basename = p => p.slice(p.lastIndexOf('/') + 1);
+const extOf = p => (p.match(/\.([a-z0-9]+)$/i) || [,''])[1].toLowerCase();
+
+function resolvePath(base, target){
+  if (target.startsWith('/')) return target.slice(1);
+  const parts = base.split('/'); parts.pop();
+  for (const seg of target.split('/')){ if (seg === '..') parts.pop(); else if (seg && seg !== '.') parts.push(seg); }
+  return parts.join('/');
+}
+
+/* ---------- Colors ---------- */
+const PRESET = {black:[0,0,0],white:[255,255,255],red:[255,0,0],green:[0,128,0],blue:[0,0,255],yellow:[255,255,0],gray:[128,128,128],grey:[128,128,128],darkGray:[169,169,169],lightGray:[211,211,211],orange:[255,165,0],navy:[0,0,128],purple:[128,0,128]};
+const hexRgb = h => { h = (h || '000000').replace('#',''); return [0,2,4].map(i => parseInt(h.substr(i,2),16) || 0); };
+function rgbHsl([r,g,b]){ r/=255; g/=255; b/=255; const mx=Math.max(r,g,b), mn=Math.min(r,g,b); let h=0,s=0; const l=(mx+mn)/2;
+  if (mx!==mn){ const d=mx-mn; s = l>.5 ? d/(2-mx-mn) : d/(mx+mn);
+    h = mx===r ? (g-b)/d + (g<b?6:0) : mx===g ? (b-r)/d + 2 : (r-g)/d + 4; h/=6; }
+  return [h,s,l]; }
+function hslRgb([h,s,l]){ if (s===0) return [l*255,l*255,l*255];
+  const f=(p,q,t)=>{ if(t<0)t+=1; if(t>1)t-=1; if(t<1/6)return p+(q-p)*6*t; if(t<1/2)return q; if(t<2/3)return p+(q-p)*(2/3-t)*6; return p; };
+  const q2 = l<.5 ? l*(1+s) : l+s-l*s, p2 = 2*l-q2; return [f(p2,q2,h+1/3)*255, f(p2,q2,h)*255, f(p2,q2,h-1/3)*255]; }
+const COLOR_TAGS = ['srgbClr','schemeClr','sysClr','prstClr','scrgbClr','hslClr'];
+function readColor(container, ctx){
+  if (!container) return null;
+  let el = null; for (const c of container.children) if (COLOR_TAGS.includes(c.localName)) { el = c; break; }
+  if (!el) return null;
+  let rgb;
+  switch (el.localName){
+    case 'srgbClr': rgb = hexRgb(el.getAttribute('val')); break;
+    case 'sysClr': rgb = hexRgb(el.getAttribute('lastClr') || (el.getAttribute('val') === 'window' ? 'FFFFFF' : '000000')); break;
+    case 'prstClr': rgb = (PRESET[el.getAttribute('val')] || [0,0,0]).slice(); break;
+    case 'scrgbClr': rgb = ['r','g','b'].map(k => num(el,k,0)/100000*255); break;
+    case 'hslClr': rgb = hslRgb([num(el,'hue',0)/21600000, num(el,'sat',0)/100000, num(el,'lum',0)/100000]); break;
+    case 'schemeClr': {
+      let v = el.getAttribute('val');
+      if (v === 'phClr') { rgb = ctx.phClr ? ctx.phClr.slice() : [0,0,0]; break; }
+      v = ctx.clrMap[v] || v;
+      rgb = (ctx.theme.colors[v] || [0,0,0]).slice(); break;
+    }
+  }
+  let alpha = 1;
+  for (const m of el.children){
+    const v = num(m, 'val', 100000) / 100000;
+    switch (m.localName){
+      case 'lumMod': { const h = rgbHsl(rgb); h[2] *= v; rgb = hslRgb(h); break; }
+      case 'lumOff': { const h = rgbHsl(rgb); h[2] = Math.min(1, h[2] + v); rgb = hslRgb(h); break; }
+      case 'satMod': { const h = rgbHsl(rgb); h[1] = Math.min(1, h[1] * v); rgb = hslRgb(h); break; }
+      case 'tint': rgb = rgb.map(c => c + (255 - c) * (1 - v)); break;
+      case 'shade': rgb = rgb.map(c => c * v); break;
+      case 'alpha': alpha = v; break;
+    }
+  }
+  return { rgb, alpha };
+}
+function css(c){
+  if (!c) return null;
+  const [r,g,b] = c.rgb.map(x => Math.round(Math.max(0, Math.min(255, x))));
+  return c.alpha < 1 ? `rgba(${r},${g},${b},${+c.alpha.toFixed(3)})` : `rgb(${r},${g},${b})`;
+}
+
+/* ---------- Fills & lines ---------- */
+function readFillEl(el, ctx, part, env){
+  if (!el || el.namespaceURI !== A) return undefined;
+  switch (el.localName){
+    case 'noFill': return { type: 'none' };
+    case 'solidFill': return { type: 'solid', color: css(readColor(el, ctx)) };
+    case 'gradFill': {
+      const stops = kids(q(el,'a:gsLst'), A, 'gs').map(gs => ({ off: num(gs,'pos',0)/1000, color: css(readColor(gs, ctx)) })).sort((a,b)=>a.off-b.off);
+      if (!stops.length) return undefined;
+      const lin = kid(el, A, 'lin');
+      return { type: 'grad', stops, ang: lin ? num(lin,'ang',0)/60000 : 90, radial: !!kid(el, A, 'path') && !lin, color: stops[0].color };
+    }
+    case 'blipFill': {
+      const url = blipUrl(kid(el, A, 'blip'), part, env);
+      return url ? { type: 'img', url, tile: !!kid(el, A, 'tile') } : undefined;
+    }
+    case 'grpFill': return env.grpFill || undefined;
+  }
+  return undefined;
+}
+function readFill(container, ctx, part, env){
+  if (!container) return undefined;
+  for (const c of container.children){ const f = readFillEl(c, ctx, part, env); if (f !== undefined) return f; }
+  return undefined;
+}
+function fillCss(f){
+  if (!f || f.type === 'none') return null;
+  if (f.type === 'solid') return f.color;
+  if (f.type === 'grad'){
+    const st = f.stops.map(s => `${s.color} ${s.off}%`).join(',');
+    return f.radial ? `radial-gradient(circle,${st})` : `linear-gradient(${(f.ang + 90).toFixed(1)}deg,${st})`;
+  }
+  if (f.type === 'img') return f.tile ? `url('${f.url}') repeat` : `url('${f.url}') center/cover no-repeat`;
+  return null;
+}
+function readLine(lnEl, styleEl, ctx){
+  let color = null, width = 12700, dash = null, head = null, tail = null, explicitNone = false;
+  if (lnEl){
+    if (kid(lnEl, A, 'noFill')) explicitNone = true;
+    const sf = kid(lnEl, A, 'solidFill'); if (sf) color = css(readColor(sf, ctx));
+    const gf = kid(lnEl, A, 'gradFill'); if (!color && gf){ const gs = q(gf,'a:gsLst','a:gs'); if (gs) color = css(readColor(gs, ctx)); }
+    width = num(lnEl, 'w', width);
+    const pd = kid(lnEl, A, 'prstDash'); if (pd) dash = pd.getAttribute('val');
+    const he = kid(lnEl, A, 'headEnd'), te = kid(lnEl, A, 'tailEnd');
+    if (he && he.getAttribute('type') && he.getAttribute('type') !== 'none') head = he.getAttribute('type');
+    if (te && te.getAttribute('type') && te.getAttribute('type') !== 'none') tail = te.getAttribute('type');
+  }
+  if (explicitNone) return null;
+  if (!color && styleEl){ const lr = kid(styleEl, A, 'lnRef'); if (lr && num(lr,'idx',0) > 0) color = css(readColor(lr, ctx)); }
+  if (!color) return null;
+  return { color, width: Math.max(0.75, width / EMU), dash, head, tail };
+}
+
+/* ---------- Media ---------- */
+function blipUrl(blip, part, env){
+  if (!blip) return null;
+  const rid = blip.getAttributeNS(R, 'embed') || blip.getAttributeNS(R, 'link');
+  const rel = rid && part.rels[rid];
+  if (!rel || rel.external) return null;
+  if (!IMG_OK.test(rel.target)){ env.warn('img', extOf(rel.target).toUpperCase()); return null; }
+  return env.urlFor(rel.target);
+}
+
+/* ---------- Geometry ---------- */
+function readAdj(geom){
+  const m = {};
+  for (const gd of kids(q(geom,'a:avLst'), A, 'gd')){
+    const f = (gd.getAttribute('fmla') || '').match(/^val\s+(-?\d+)/); if (f) m[gd.getAttribute('name')] = +f[1];
+  }
+  return m;
+}
+function pathFromPts(pts, closed){ return pts.map((p,i) => (i ? 'L' : 'M') + p[0].toFixed(2) + ' ' + p[1].toFixed(2)).join(' ') + (closed ? ' Z' : ''); }
+function presetPath(prst, w, h, adj, fl){
+  const ss = Math.min(w, h), a = (n, d) => (adj[n] !== undefined ? adj[n] : d) / 100000;
+  const F = p => [fl.h ? w - p[0] : p[0], fl.v ? h - p[1] : p[1]];
+  const poly = pts => ({ d: pathFromPts(pts.map(F), true) });
+  const open = pts => ({ d: pathFromPts(pts.map(F), false), open: true });
+  switch (prst){
+    case undefined: case null: case 'rect': case 'flowChartProcess': case 'textRect':
+      return { d: `M0 0 H${w} V${h} H0 Z` };
+    case 'roundRect': case 'flowChartAlternateProcess': case 'flowChartTerminator': {
+      const r = prst === 'flowChartTerminator' ? ss/2 : Math.min(ss/2, ss * a('adj', 16667));
+      return { d: `M${r} 0 H${w-r} A${r} ${r} 0 0 1 ${w} ${r} V${h-r} A${r} ${r} 0 0 1 ${w-r} ${h} H${r} A${r} ${r} 0 0 1 0 ${h-r} V${r} A${r} ${r} 0 0 1 ${r} 0 Z` };
+    }
+    case 'round2SameRect': { const r = Math.min(ss/2, ss * a('adj1', 16667));
+      return { d: `M${r} 0 H${w-r} A${r} ${r} 0 0 1 ${w} ${r} V${h} H0 V${r} A${r} ${r} 0 0 1 ${r} 0 Z` }; }
+    case 'ellipse': case 'flowChartConnector':
+      return { d: `M0 ${h/2} A${w/2} ${h/2} 0 1 0 ${w} ${h/2} A${w/2} ${h/2} 0 1 0 0 ${h/2} Z` };
+    case 'triangle': { const x = w * a('adj', 50000); return poly([[x,0],[w,h],[0,h]]); }
+    case 'rtTriangle': return poly([[0,0],[w,h],[0,h]]);
+    case 'diamond': case 'flowChartDecision': return poly([[w/2,0],[w,h/2],[w/2,h],[0,h/2]]);
+    case 'parallelogram': case 'flowChartInputOutput': { const o = Math.min(w, ss * a('adj', 25000)); return poly([[o,0],[w,0],[w-o,h],[0,h]]); }
+    case 'trapezoid': { const o = Math.min(w/2, ss * a('adj', 25000)); return poly([[0,h],[o,0],[w-o,0],[w,h]]); }
+    case 'hexagon': { const o = Math.min(w/2, ss * a('adj', 25000)); return poly([[o,0],[w-o,0],[w,h/2],[w-o,h],[o,h],[0,h/2]]); }
+    case 'octagon': { const o = Math.min(w/2, h/2, ss * a('adj', 29289)); return poly([[o,0],[w-o,0],[w,o],[w,h-o],[w-o,h],[o,h],[0,h-o],[0,o]]); }
+    case 'pentagon': return poly([[w/2,0],[w,h*.382],[w*.809,h],[w*.191,h],[0,h*.382]]);
+    case 'homePlate': { const o = Math.min(w, ss * a('adj', 50000)); return poly([[0,0],[w-o,0],[w,h/2],[w-o,h],[0,h]]); }
+    case 'chevron': { const o = Math.min(w, ss * a('adj', 50000)); return poly([[0,0],[w-o,0],[w,h/2],[w-o,h],[0,h],[o,h/2]]); }
+    case 'rightArrow': case 'leftArrow': {
+      const t = h * a('adj1', 50000), hl = Math.min(w, ss * a('adj2', 50000)), y1 = (h - t)/2, y2 = y1 + t, hx = w - hl;
+      let pts = [[0,y1],[hx,y1],[hx,0],[w,h/2],[hx,h],[hx,y2],[0,y2]];
+      if (prst === 'leftArrow') pts = pts.map(p => [w - p[0], p[1]]);
+      return poly(pts);
+    }
+    case 'upArrow': case 'downArrow': {
+      const t = w * a('adj1', 50000), hl = Math.min(h, ss * a('adj2', 50000)), x1 = (w - t)/2, x2 = x1 + t, hy = h - hl;
+      let pts = [[x1,0],[x1,hy],[0,hy],[w/2,h],[w,hy],[x2,hy],[x2,0]];
+      if (prst === 'upArrow') pts = pts.map(p => [p[0], h - p[1]]);
+      return poly(pts);
+    }
+    case 'star5': {
+      const pts = []; for (let i = 0; i < 10; i++){ const ang = -Math.PI/2 + i*Math.PI/5, rr = i % 2 ? 0.382 : 1;
+        pts.push([w/2 + Math.cos(ang)*w/2*rr, h/2 + Math.sin(ang)*h/2*rr]); }
+      return poly(pts);
+    }
+    case 'plus': { const o = ss * a('adj', 25000);
+      return poly([[o,0],[w-o,0],[w-o,o],[w,o],[w,h-o],[w-o,h-o],[w-o,h],[o,h],[o,h-o],[0,h-o],[0,o],[o,o]]); }
+    case 'line': case 'straightConnector1': return open([[0,0],[w,h]]);
+    case 'bentConnector2': return open([[0,0],[w,0],[w,h]]);
+    case 'bentConnector3': { const x = w * a('adj1', 50000); return open([[0,0],[x,0],[x,h],[w,h]]); }
+    default: return null;
+  }
+}
+function custPath(cust, w, h, extW, extH, fl){
+  const out = [];
+  for (const path of kids(q(cust,'a:pathLst'), A, 'path')){
+    const pw = num(path,'w',0) || extW, ph = num(path,'h',0) || extH;
+    const sx = pw ? w / pw : 1, sy = ph ? h / ph : 1;
+    const F = (x, y) => [fl.h ? w - x : x, fl.v ? h - y : y];
+    let d = '', cx = 0, cy = 0;
+    const pt = el => [num(el,'x',0)*sx, num(el,'y',0)*sy];
+    for (const c of path.children){
+      const pts = kids(c, A, 'pt').map(pt);
+      const s = p => { const f = F(p[0], p[1]); return f[0].toFixed(2) + ' ' + f[1].toFixed(2); };
+      switch (c.localName){
+        case 'moveTo': if (pts[0]) { d += 'M' + s(pts[0]) + ' '; [cx, cy] = pts[0]; } break;
+        case 'lnTo': if (pts[0]) { d += 'L' + s(pts[0]) + ' '; [cx, cy] = pts[0]; } break;
+        case 'cubicBezTo': if (pts.length === 3) { d += 'C' + pts.map(s).join(' ') + ' '; [cx, cy] = pts[2]; } break;
+        case 'quadBezTo': if (pts.length === 2) { d += 'Q' + pts.map(s).join(' ') + ' '; [cx, cy] = pts[1]; } break;
+        case 'arcTo': {
+          const wr = num(c,'wR',0)*sx, hr = num(c,'hR',0)*sy, st = num(c,'stAng',0)/60000*Math.PI/180, sw = num(c,'swAng',0)/60000*Math.PI/180;
+          const ox = cx - wr*Math.cos(st), oy = cy - hr*Math.sin(st);
+          const ex = ox + wr*Math.cos(st+sw), ey = oy + hr*Math.sin(st+sw);
+          let sweep = sw > 0 ? 1 : 0; if (fl.h !== fl.v) sweep = 1 - sweep;
+          d += `A${wr.toFixed(2)} ${hr.toFixed(2)} 0 ${Math.abs(sw) > Math.PI ? 1 : 0} ${sweep} ${s([ex,ey])} `;
+          cx = ex; cy = ey; break;
+        }
+        case 'close': d += 'Z '; break;
+      }
+    }
+    out.push({ d, noFill: path.getAttribute('fill') === 'none', noStroke: path.getAttribute('stroke') === '0' || path.getAttribute('stroke') === 'false' });
+  }
+  return out;
+}
+let gid = 0;
+function geomSvg(paths, w, h, fill, line){
+  const fillable = fill && fill.type !== 'none' && fill.type !== 'img';
+  if (!fillable && !line) return '';
+  let defs = '', fillAttr = 'none';
+  if (fill && fill.type === 'solid') fillAttr = fill.color;
+  else if (fill && fill.type === 'grad'){
+    const id = 'g' + (++gid) + Math.random().toString(36).slice(2,6);
+    const stops = fill.stops.map(s => `<stop offset="${s.off}%" stop-color="${s.color}"/>`).join('');
+    if (fill.radial) defs += `<radialGradient id="${id}">${stops}</radialGradient>`;
+    else { const r = fill.ang * Math.PI / 180, c = Math.cos(r)/2, s = Math.sin(r)/2;
+      defs += `<linearGradient id="${id}" x1="${(.5-c).toFixed(3)}" y1="${(.5-s).toFixed(3)}" x2="${(.5+c).toFixed(3)}" y2="${(.5+s).toFixed(3)}">${stops}</linearGradient>`; }
+    fillAttr = `url(#${id})`;
+  }
+  let strokeAttr = '';
+  if (line){
+    let da = '';
+    const lw = line.width;
+    if (line.dash && line.dash !== 'solid'){
+      const D = { dot:[1,1], sysDot:[1,1], sysDash:[3,1], dash:[4,3], dashDot:[4,3,1,3], lgDash:[8,3], lgDashDot:[8,3,1,3], lgDashDotDot:[8,3,1,3,1,3], sysDashDot:[3,1,1,1], sysDashDotDot:[3,1,1,1,1,1] }[line.dash];
+      if (D) da = ` stroke-dasharray="${D.map(x => (x*lw).toFixed(1)).join(' ')}"`;
+    }
+    strokeAttr = ` stroke="${line.color}" stroke-width="${lw.toFixed(2)}"${da} stroke-linejoin="round"`;
+    if (line.head || line.tail){
+      const id = 'm' + (++gid) + Math.random().toString(36).slice(2,6);
+      defs += `<marker id="${id}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="${line.color}"/></marker>`;
+      if (line.head) strokeAttr += ` marker-start="url(#${id})"`;
+      if (line.tail) strokeAttr += ` marker-end="url(#${id})"`;
+    }
+  }
+  const body = paths.map(p => `<path d="${p.d.replace(/-?\d+\.\d{3,}/g, m => (+m).toFixed(2))}" fill="${p.open || p.noFill ? 'none' : fillAttr}"${p.noStroke ? '' : strokeAttr}/>`).join('');
+  return `<svg class="geo" width="${Math.max(w,1)}" height="${Math.max(h,1)}">${defs ? '<defs>' + defs + '</defs>' : ''}${body}</svg>`;
+}
+
+/* ---------- Text ---------- */
+function mergeRPr(r, el, ctx){
+  if (!el) return;
+  for (const k of ['sz','b','i','u','strike','baseline','cap','spc']) if (el.hasAttribute(k)) r[k] = el.getAttribute(k);
+  const sf = kid(el, A, 'solidFill'); if (sf) r.color = css(readColor(sf, ctx));
+  const gf = kid(el, A, 'gradFill'); if (gf){ const gs = q(gf,'a:gsLst','a:gs'); if (gs) r.color = css(readColor(gs, ctx)); }
+  if (kid(el, A, 'noFill')) r.color = 'transparent';
+  const lat = kid(el, A, 'latin'); if (lat && lat.getAttribute('typeface')) r.font = lat.getAttribute('typeface');
+  const cs = kid(el, A, 'cs'); if (!r.font && cs && cs.getAttribute('typeface')) r.font = cs.getAttribute('typeface');
+  const hl = kid(el, A, 'highlight'); if (hl) r.highlight = css(readColor(hl, ctx));
+}
+function mergePPr(p, el, ctx){
+  if (!el) return;
+  for (const k of ['algn','marL','indent','rtl']) if (el.hasAttribute(k)) p[k] = el.getAttribute(k);
+  for (const c of el.children){
+    switch (c.localName){
+      case 'defRPr': p.r = p.r || {}; mergeRPr(p.r, c, ctx); break;
+      case 'buNone': p.bu = null; break;
+      case 'buChar': p.bu = { char: c.getAttribute('char') || '•' }; break;
+      case 'buAutoNum': p.bu = { auto: c.getAttribute('type') || 'arabicPeriod', start: num(c,'startAt',1) }; break;
+      case 'buClr': p.buClr = css(readColor(c, ctx)); break;
+      case 'buSzPct': p.buSz = num(c,'val',100000)/100000; break;
+      case 'buFont': p.buFont = c.getAttribute('typeface'); break;
+      case 'lnSpc': p.lnSpc = spacing(c); break;
+      case 'spcBef': p.spcBef = spacing(c); break;
+      case 'spcAft': p.spcAft = spacing(c); break;
+    }
+  }
+}
+function spacing(el){
+  const pct = kid(el, A, 'spcPct'), pts = kid(el, A, 'spcPts');
+  if (pct) return { pct: num(pct,'val',100000)/100000 };
+  if (pts) return { pts: num(pts,'val',0)/100 };
+  return null;
+}
+function lvlProps(layers, lvl, ctx){
+  // layers: low → high priority; items are XML list styles or {r:{...}} objects
+  const res = { r: {} };
+  for (const L of layers){
+    if (!L) continue;
+    if (L.nodeType === 1){ const p = kid(L, A, 'lvl' + (lvl+1) + 'pPr'); if (p) mergePPr(res, p, ctx); }
+    else if (L.r) Object.assign(res.r, L.r);
+  }
+  return res;
+}
+function fontCss(name, ctx){
+  if (!name) return null;
+  if (name.startsWith('+mj')) name = ctx.theme.major;
+  else if (name.startsWith('+mn')) name = ctx.theme.minor;
+  if (!name) return null;
+  return `'${name.replace(/'/g,'')}',Arial,sans-serif`;
+}
+const ptPx = pt => pt * 96 / 72;
+function romanize(n){ const m=[[1000,'m'],[900,'cm'],[500,'d'],[400,'cd'],[100,'c'],[90,'xc'],[50,'l'],[40,'xl'],[10,'x'],[9,'ix'],[5,'v'],[4,'iv'],[1,'i']]; let s=''; for (const [v,c] of m) while (n>=v){ s+=c; n-=v; } return s; }
+function autoNum(type, n){
+  let core = String(n);
+  if (/^alphaLc/.test(type)) core = String.fromCharCode(96 + ((n-1)%26)+1);
+  else if (/^alphaUc/.test(type)) core = String.fromCharCode(64 + ((n-1)%26)+1);
+  else if (/^romanLc/.test(type)) core = romanize(n);
+  else if (/^romanUc/.test(type)) core = romanize(n).toUpperCase();
+  if (/ParenBoth$/.test(type)) return '(' + core + ')';
+  if (/ParenR$/.test(type)) return core + ')';
+  if (/Plain$/.test(type)) return core;
+  return core + '.';
+}
+function runStyle(r, ctx, scale){
+  const s = [];
+  const sz = r.sz ? +r.sz / 100 : 18;
+  s.push(`font-size:${(ptPx(sz) * scale).toFixed(2)}px`);
+  if (r.b === '1' || r.b === 'true') s.push('font-weight:bold');
+  if (r.i === '1' || r.i === 'true') s.push('font-style:italic');
+  const deco = [];
+  if (r.u && r.u !== 'none') deco.push('underline');
+  if (r.strike && r.strike !== 'noStrike') deco.push('line-through');
+  if (deco.length) s.push('text-decoration:' + deco.join(' '));
+  if (r.color) s.push('color:' + r.color);
+  const f = fontCss(r.font, ctx); if (f) s.push('font-family:' + f);
+  if (r.baseline && +r.baseline){ s.push(`vertical-align:${+r.baseline > 0 ? 'super' : 'sub'}`); s.push(`font-size:${(ptPx(sz) * scale * .65).toFixed(2)}px`); }
+  if (r.cap === 'all') s.push('text-transform:uppercase');
+  else if (r.cap === 'small') s.push('font-variant:small-caps');
+  if (r.spc) s.push(`letter-spacing:${(ptPx(+r.spc/100) * scale).toFixed(2)}px`);
+  if (r.highlight) s.push('background:' + r.highlight);
+  return s.join(';');
+}
+function renderText(txBody, o){
+  // o: {layers, ctx, part, env, fontScale, lnRed}
+  let html = '';
+  const counters = [];
+  for (const p of kids(txBody, A, 'p')){
+    const pPr = kid(p, A, 'pPr');
+    const lvl = Math.min(8, num(pPr, 'lvl', 0));
+    const props = lvlProps(o.layers, lvl, o.ctx);
+    if (pPr) mergePPr(props, pPr, o.ctx);
+    let inner = '', firstRun = null, hasText = false, maxSz = 0;
+    for (const c of p.children){
+      if (c.namespaceURI !== A) continue;
+      if (c.localName === 'r' || c.localName === 'fld'){
+        const r = Object.assign({}, props.r); mergeRPr(r, kid(c, A, 'rPr'), o.ctx);
+        let t = kid(c, A, 't'); t = t ? t.textContent : '';
+        if (c.localName === 'fld' && /slidenum/i.test(c.getAttribute('type') || '')) t = String(o.env.slideNum);
+        if (t.length) hasText = true;
+        if (!firstRun) firstRun = r;
+        maxSz = Math.max(maxSz, r.sz ? +r.sz : 1800);
+        let span = `<span style="${runStyle(r, o.ctx, o.fontScale)}">${esc(t)}</span>`;
+        const hl = q(c, 'a:rPr', 'a:hlinkClick');
+        const rid = hl && hl.getAttributeNS(R, 'id');
+        const rel = rid && o.part.rels[rid];
+        if (rel && rel.external && /^(https?:|mailto:)/i.test(rel.target)) span = `<a href="${esc(rel.target)}" target="_blank" rel="noopener">${span}</a>`;
+        inner += span;
+      } else if (c.localName === 'br'){
+        inner += '<br>';
+      }
+    }
+    const endR = Object.assign({}, props.r); mergeRPr(endR, kid(p, A, 'endParaRPr'), o.ctx);
+    const baseR = firstRun || endR;
+    const fontPx = ptPx((maxSz || (baseR.sz ? +baseR.sz : 1800)) / 100) * o.fontScale;
+    if (!hasText && !inner.includes('<br>')) inner = `<span style="${runStyle(endR, o.ctx, o.fontScale)}">&#8203;</span>`;
+    // bullets
+    const marL = px(+(props.marL || 0)), indent = px(+(props.indent || 0));
+    let bullet = '';
+    if (props.bu && hasText){
+      let ch;
+      if (props.bu.auto){ counters[lvl] = (counters[lvl] || (props.bu.start - 1)) + 1; for (let k = lvl+1; k < 9; k++) counters[k] = 0; ch = autoNum(props.bu.auto, counters[lvl]); }
+      else ch = props.bu.char;
+      const bs = [runStyle(baseR, o.ctx, o.fontScale * (props.buSz || 1))];
+      if (props.buClr) bs.push('color:' + props.buClr);
+      if (props.buFont && !/symbol|wingdings/i.test(props.buFont)) bs.push('font-family:' + fontCss(props.buFont, o.ctx));
+      if (/wingdings|symbol/i.test(props.buFont || '') && !props.bu.auto) ch = '•';
+      const bw = indent < 0 ? -indent : 0;
+      bullet = `<span style="display:inline-block;${bw ? `width:${bw}px;` : 'margin-right:.4em;'}text-indent:0;text-decoration:none;${bs.join(';')}">${esc(ch)}</span>`;
+    } else if (!props.bu) {
+      counters[lvl] = 0;
+    }
+    const ps = [];
+    const al = { l:'left', ctr:'center', r:'right', just:'justify', dist:'justify' }[props.algn]; if (al) ps.push('text-align:' + al);
+    if (marL) ps.push(`margin-left:${marL}px`);
+    if (indent) ps.push(`text-indent:${indent}px`);
+    if (props.lnSpc){
+      if (props.lnSpc.pct) ps.push(`line-height:${(props.lnSpc.pct * 1.2 * (1 - (o.lnRed || 0))).toFixed(3)}`);
+      else if (props.lnSpc.pts) ps.push(`line-height:${ptPx(props.lnSpc.pts).toFixed(1)}px`);
+    } else if (o.lnRed) ps.push(`line-height:${(1.2 * (1 - o.lnRed)).toFixed(3)}`);
+    const sp = (s) => s ? (s.pts !== undefined ? ptPx(s.pts) : s.pct * fontPx) : 0;
+    const sb = sp(props.spcBef), sa = sp(props.spcAft);
+    if (sb) ps.push(`padding-top:${sb.toFixed(1)}px`);
+    if (sa) ps.push(`padding-bottom:${sa.toFixed(1)}px`);
+    if (props.rtl === '1') ps.push('direction:rtl');
+    html += `<p style="${ps.join(';')}">${bullet}${inner}</p>`;
+  }
+  return html;
+}
+function bodyProps(chain){
+  const b = { anchor: 't', l: 91440, t: 45720, r: 91440, b: 45720, wrap: 'square' };
+  for (const el of chain){
+    if (!el) continue;
+    if (el.hasAttribute('anchor')) b.anchor = el.getAttribute('anchor');
+    if (el.hasAttribute('lIns')) b.l = +el.getAttribute('lIns');
+    if (el.hasAttribute('tIns')) b.t = +el.getAttribute('tIns');
+    if (el.hasAttribute('rIns')) b.r = +el.getAttribute('rIns');
+    if (el.hasAttribute('bIns')) b.b = +el.getAttribute('bIns');
+    if (el.hasAttribute('wrap')) b.wrap = el.getAttribute('wrap');
+    if (el.hasAttribute('vert')) b.vert = el.getAttribute('vert');
+  }
+  return b;
+}
+function textLayer(txBody, bp, o){
+  const content = renderText(txBody, o);
+  if (!content.replace(/<[^>]+>|&#8203;/g, '').trim()) return '';
+  const jc = { t:'flex-start', ctr:'center', b:'flex-end', just:'center', dist:'center' }[bp.anchor] || 'flex-start';
+  const st = [`justify-content:${jc}`, `padding:${px(bp.t)}px ${px(bp.r)}px ${px(bp.b)}px ${px(bp.l)}px`];
+  if (bp.wrap === 'none') st.push('white-space:nowrap');
+  let extra = '';
+  if (bp.vert === 'vert270') extra = 'writing-mode:vertical-rl;transform:rotate(180deg);';
+  else if (bp.vert === 'vert' || bp.vert === 'eaVert') extra = 'writing-mode:vertical-rl;';
+  return `<div class="tx" style="${st.join(';')};${extra}">${content.replace(/<p style="/g, bp.wrap === 'none' ? '<p style="white-space:pre;' : '<p style="')}</div>`;
+}
+
+/* ---------- Deck loading ---------- */
+async function loadDeck(buf){
+  const zip = await JSZip.loadAsync(buf);
+  const parts = {};
+  async function readRels(path){
+    const i = path.lastIndexOf('/');
+    const relPath = path.slice(0, i) + '/_rels/' + path.slice(i+1) + '.rels';
+    const f = zip.file(relPath); const map = {};
+    if (!f) return map;
+    const doc = parseXml(await f.async('string'));
+    for (const r of doc.getElementsByTagName('Relationship')){
+      const ext = r.getAttribute('TargetMode') === 'External';
+      map[r.getAttribute('Id')] = { type: r.getAttribute('Type') || '', external: ext, target: ext ? r.getAttribute('Target') : resolvePath(path, r.getAttribute('Target')) };
+    }
+    return map;
+  }
+  async function part(path){
+    if (parts[path]) return parts[path];
+    const f = zip.file(path); if (!f) throw new Error('В файле нет части ' + path);
+    const doc = parseXml(await f.async('string'));
+    if (doc.getElementsByTagName('parsererror').length) throw new Error('Не удалось прочитать ' + path);
+    const p = { path, doc, root: doc.documentElement, rels: await readRels(path) };
+    parts[path] = p; return p;
+  }
+  const relOfType = (rels, t) => Object.values(rels).find(r => r.type.endsWith('/' + t));
+
+  const pres = await part('ppt/presentation.xml');
+  if (!pres.root || pres.root.localName !== 'presentation') throw new Error('Это не презентация PowerPoint');
+  const sz = q(pres.root, 'p:sldSz');
+  const W = num(sz, 'cx', 9144000), H = num(sz, 'cy', 6858000);
+  const defaultTextStyle = q(pres.root, 'p:defaultTextStyle');
+
+  const themes = {};
+  async function theme(path){
+    if (themes[path]) return themes[path];
+    const t = { colors: {}, major: null, minor: null, bgFills: [] };
+    if (path && zip.file(path)){
+      const tp = await part(path);
+      const els = q(tp.root, 'a:themeElements');
+      const cs = q(els, 'a:clrScheme');
+      if (cs) for (const c of cs.children){
+        const v = c.firstElementChild; if (!v) continue;
+        t.colors[c.localName] = v.localName === 'sysClr' ? hexRgb(v.getAttribute('lastClr') || '000000') : hexRgb(v.getAttribute('val'));
+      }
+      const fs = q(els, 'a:fontScheme');
+      t.major = q(fs, 'a:majorFont', 'a:latin')?.getAttribute('typeface') || null;
+      t.minor = q(fs, 'a:minorFont', 'a:latin')?.getAttribute('typeface') || null;
+      t.bgFills = Array.from(q(els, 'a:fmtScheme', 'a:bgFillStyleLst')?.children || []);
+      t.part = tp;
+    }
+    themes[path] = t; return t;
+  }
+
+  const ids = kids(q(pres.root, 'p:sldIdLst'), P, 'sldId');
+  const slides = [];
+  for (const sid of ids){
+    const rel = pres.rels[sid.getAttributeNS(R, 'id')];
+    if (!rel) continue;
+    const s = await part(rel.target);
+    const lr = relOfType(s.rels, 'slideLayout');
+    const layout = lr ? await part(lr.target) : null;
+    const mr = layout && relOfType(layout.rels, 'slideMaster');
+    const master = mr ? await part(mr.target) : null;
+    const tr = master && relOfType(master.rels, 'theme');
+    const th = await theme(tr ? tr.target : null);
+    slides.push({ part: s, layout, master, theme: th, hidden: s.root.getAttribute('show') === '0' });
+  }
+  if (!slides.length) throw new Error('В презентации нет слайдов');
+
+  // media
+  const media = {};
+  const mediaFiles = zip.file(/^ppt\/media\//);
+  for (const f of mediaFiles){
+    const ext = extOf(f.name);
+    const blob = await f.async('blob');
+    media[f.name] = new Blob([blob], { type: MIME[ext] || 'application/octet-stream' });
+  }
+
+  let title = '';
+  const core = zip.file('docProps/core.xml');
+  if (core){ const d = parseXml(await core.async('string')); const t = d.getElementsByTagNameNS('http://purl.org/dc/elements/1.1/', 'title')[0]; if (t) title = t.textContent.trim(); }
+
+  return { W, H, slides, media, title, defaultTextStyle };
+}
+
+/* ---------- Slide rendering ---------- */
+const normType = t => ({ ctrTitle:'title', subTitle:'body', obj:'body' })[t] || t || 'body';
+function phInfo(el){
+  const nv = el.firstElementChild; const nvPr = nv && kid(nv, P, 'nvPr'); const ph = nvPr && kid(nvPr, P, 'ph');
+  if (!ph) return null;
+  return { type: ph.getAttribute('type') || 'body', idx: ph.getAttribute('idx') };
+}
+function phList(part){
+  if (part._ph) return part._ph;
+  const list = [];
+  const walk = tree => { for (const c of tree.children){
+    if (c.localName === 'grpSp') walk(c);
+    else if (['sp','pic','graphicFrame'].includes(c.localName)){ const i = phInfo(c); if (i) list.push({ el: c, info: i }); }
+  } };
+  const tree = q(part.root, 'p:cSld', 'p:spTree'); if (tree) walk(tree);
+  return part._ph = list;
+}
+function findPh(part, info, masterMode){
+  if (!part || !info) return null;
+  const list = phList(part);
+  if (!masterMode && info.idx != null){ const m = list.find(x => x.info.idx === info.idx); if (m) return m.el; }
+  let m = list.find(x => x.info.type === info.type); if (m) return m.el;
+  const nt = normType(info.type); m = list.find(x => normType(x.info.type) === nt);
+  return m ? m.el : null;
+}
+function xfrmOf(el){
+  if (!el) return null;
+  if (el.localName === 'graphicFrame') return kid(el, P, 'xfrm');
+  return q(el, 'p:spPr', 'a:xfrm') || q(el, 'p:grpSpPr', 'a:xfrm');
+}
+function rectOf(xf){
+  const off = kid(xf, A, 'off'), ext = kid(xf, A, 'ext');
+  return { x: num(off,'x',0), y: num(off,'y',0), w: num(ext,'cx',0), h: num(ext,'cy',0),
+    rot: num(xf,'rot',0)/60000, flipH: xf.getAttribute('flipH') === '1', flipV: xf.getAttribute('flipV') === '1' };
+}
+function boxStyle(r, T){
+  const m = T(r);
+  let s = `left:${px(m.x)}px;top:${px(m.y)}px;width:${px(m.w)}px;height:${px(m.h)}px`;
+  if (r.rot) s += `;transform:rotate(${+r.rot.toFixed(2)}deg)`;
+  return { style: s, w: px(m.w), h: px(m.h), extW: r.w, extH: r.h };
+}
+function txStyleFor(type, master){
+  const ts = q(master.root, 'p:txStyles');
+  if (!ts) return null;
+  if (type === 'title' || type === 'ctrTitle') return kid(ts, P, 'titleStyle');
+  if (['dt','ftr','sldNum','hdr'].includes(type)) return kid(ts, P, 'otherStyle');
+  return kid(ts, P, 'bodyStyle');
+}
+
+function renderTree(tree, env){
+  let html = '';
+  for (const el of tree.children){
+    if (el.localName === 'AlternateContent'){
+      const alt = Array.from(el.children).find(c => c.localName === 'Fallback') || Array.from(el.children).find(c => c.localName === 'Choice');
+      if (alt) html += renderTree(alt, env);
+      continue;
+    }
+    try {
+      switch (el.localName){
+        case 'sp': html += renderSp(el, env); break;
+        case 'cxnSp': html += renderSp(el, env); break;
+        case 'pic': html += renderPic(el, env); break;
+        case 'grpSp': html += renderGroup(el, env); break;
+        case 'graphicFrame': html += renderFrame(el, env); break;
+        case 'contentPart': env.warn('ink'); break;
+      }
+    } catch (e) { console.warn(e); env.warn('err'); }
+  }
+  return html;
+}
+function phContext(el, env){
+  const ph = phInfo(el);
+  if (!ph) return { ph: null };
+  if (env.layer !== 'slide') return { ph, skip: true };
+  const lph = findPh(env.layout, ph, false);
+  const mph = findPh(env.master, lph ? phInfo(lph) : ph, true);
+  return { ph, lph, mph };
+}
+function renderSp(sp, env){
+  const pc = phContext(sp, env);
+  if (pc.skip) return '';
+  const spPr = kid(sp, P, 'spPr');
+  const xf = xfrmOf(sp) || xfrmOf(pc.lph) || xfrmOf(pc.mph);
+  if (!xf) return '';
+  const r = rectOf(xf), b = boxStyle(r, env.T);
+  const style = kid(sp, P, 'style');
+  const ctx = env.ctx;
+
+  // fill
+  let fill = readFill(spPr, ctx, env.part, env);
+  if (fill === undefined && pc.lph) fill = readFill(kid(pc.lph, P, 'spPr'), ctx, env.layout, env);
+  if (fill === undefined && pc.mph) fill = readFill(kid(pc.mph, P, 'spPr'), ctx, env.master, env);
+  if (fill === undefined && style){ const fr = kid(style, A, 'fillRef'); if (fr && num(fr,'idx',0) > 0){ const c = css(readColor(fr, ctx)); if (c) fill = { type: 'solid', color: c }; } }
+  // line
+  let lnEl = kid(spPr, A, 'ln') || q(pc.lph, 'p:spPr', 'a:ln') || q(pc.mph, 'p:spPr', 'a:ln');
+  const line = readLine(lnEl, style, ctx);
+
+  // geometry
+  const fl = { h: r.flipH, v: r.flipV };
+  let paths = null, prst = null;
+  const pg = kid(spPr, A, 'prstGeom'), cg = kid(spPr, A, 'custGeom');
+  if (cg) paths = custPath(cg, b.w, b.h, b.extW, b.extH, fl);
+  else {
+    prst = pg ? pg.getAttribute('prst') : (sp.localName === 'cxnSp' ? 'line' : 'rect');
+    if (sp.localName === 'cxnSp' && /^curvedConnector/.test(prst)) prst = 'line';
+    if (/^bentConnector[45]/.test(prst)) prst = 'bentConnector3';
+    const g = presetPath(prst, b.w, b.h, readAdj(pg), fl) || presetPath('rect', b.w, b.h, {}, fl);
+    paths = [g];
+  }
+  let inner = '';
+  if (fill && fill.type === 'img'){
+    const rad = prst === 'ellipse' ? 'border-radius:50%;' : prst === 'roundRect' ? `border-radius:${Math.min(b.w,b.h) * ((readAdj(pg).adj ?? 16667)/100000)}px;` : '';
+    inner += `<div class="fillbox" style="${rad}background:${fillCss(fill)}"></div>`;
+  }
+  inner += geomSvg(paths, b.w, b.h, fill, line);
+
+  // text
+  const txBody = kid(sp, P, 'txBody');
+  if (txBody){
+    const bp = bodyProps([q(pc.mph,'p:txBody','a:bodyPr'), q(pc.lph,'p:txBody','a:bodyPr'), kid(txBody, A, 'bodyPr')]);
+    const af = q(txBody, 'a:bodyPr', 'a:normAutofit');
+    const fontScale = af ? num(af, 'fontScale', 100000)/100000 : 1;
+    const lnRed = af ? num(af, 'lnSpcReduction', 0)/100000 : 0;
+    const base = { r: { color: css(readColor({ children: [mkScheme('tx1')] }, ctx)) } };
+    let layers;
+    const fontRef = style && kid(style, A, 'fontRef');
+    const frColor = fontRef ? css(readColor(fontRef, ctx)) : null;
+    if (pc.ph){
+      layers = [base, txStyleFor(pc.ph.type, env.master), q(pc.mph,'p:txBody','a:lstStyle'), q(pc.lph,'p:txBody','a:lstStyle'), frColor ? { r: { color: frColor } } : null, kid(txBody, A, 'lstStyle')];
+    } else {
+      layers = [base, env.deck.defaultTextStyle, kid(q(env.master.root,'p:txStyles'), P, 'otherStyle'), frColor ? { r: { color: frColor } } : null, kid(txBody, A, 'lstStyle')];
+    }
+    inner += textLayer(txBody, bp, { layers, ctx, part: env.part, env, fontScale, lnRed });
+  }
+  if (!inner) return '';
+  return `<div class="sh" style="${b.style}">${inner}</div>`;
+}
+const SCHEME_DOC = parseXml(`<a:x xmlns:a="${A}"/>`);
+function mkScheme(val){ const e = SCHEME_DOC.createElementNS(A, 'a:schemeClr'); e.setAttribute('val', val); return e; }
+
+function renderPic(pic, env){
+  const pc = phContext(pic, env);
+  if (pc.skip) return '';
+  const xf = xfrmOf(pic) || xfrmOf(pc.lph) || xfrmOf(pc.mph);
+  if (!xf) return '';
+  const r = rectOf(xf), b = boxStyle(r, env.T);
+  const spPr = kid(pic, P, 'spPr');
+  const line = readLine(kid(spPr, A, 'ln'), kid(pic, P, 'style'), env.ctx);
+  const prst = kid(spPr, A, 'prstGeom')?.getAttribute('prst');
+  let rad = '';
+  if (prst === 'ellipse') rad = 'border-radius:50%;';
+  else if (prst === 'roundRect') rad = `border-radius:${(Math.min(b.w,b.h) * ((readAdj(kid(spPr, A, 'prstGeom')).adj ?? 16667)/100000)).toFixed(1)}px;`;
+
+  // media (video / audio)
+  const nvPr = q(pic, 'p:nvPicPr', 'p:nvPr');
+  const vf = kid(nvPr, A, 'videoFile'), af = kid(nvPr, A, 'audioFile');
+  let mediaTarget = null;
+  if (vf || af){
+    const m14 = nvPr.getElementsByTagNameNS('http://schemas.microsoft.com/office/powerpoint/2010/main', 'media')[0];
+    const rid = (m14 && m14.getAttributeNS(R, 'embed')) || (vf || af).getAttributeNS(R, 'link');
+    const rel = rid && env.part.rels[rid];
+    if (rel && !rel.external) mediaTarget = rel.target;
+  }
+
+  const blipFill = kid(pic, P, 'blipFill');
+  const blip = kid(blipFill, A, 'blip');
+  const rid = blip && (blip.getAttributeNS(R, 'embed') || blip.getAttributeNS(R, 'link'));
+  const rel = rid && env.part.rels[rid];
+  let poster = null;
+  if (rel && !rel.external && IMG_OK.test(rel.target)) poster = env.urlFor(rel.target);
+
+  let inner;
+  if (mediaTarget && VIDEO_OK.test(mediaTarget)){
+    inner = `<div class="imgbox" style="${rad}"><video controls preload="metadata" playsinline src="${env.urlFor(mediaTarget)}"${poster ? ` poster="${poster}"` : ''}></video></div>`;
+  } else if (mediaTarget && AUDIO_OK.test(mediaTarget)){
+    inner = `<div class="imgbox" style="overflow:visible">${poster ? `<img src="${poster}" style="left:0;top:0;width:100%;height:100%" alt="">` : ''}<audio controls preload="metadata" src="${env.urlFor(mediaTarget)}" style="position:absolute;left:0;top:100%;width:max(100%,260px)"></audio></div>`;
+  } else {
+    if (vf || af) env.warn('media', mediaTarget ? extOf(mediaTarget).toUpperCase() : 'внешняя ссылка');
+    if (!rel || rel.external){ return `<div class="sh" style="${b.style}"><div class="miss">Изображение по ссылке</div></div>`; }
+    if (!poster){ env.warn('img', extOf(rel.target).toUpperCase()); return `<div class="sh" style="${b.style}"><div class="miss">Картинка ${esc(extOf(rel.target).toUpperCase())} не поддерживается</div></div>`; }
+    const sr = kid(blipFill, A, 'srcRect');
+    const cl = num(sr,'l',0)/100000, ct = num(sr,'t',0)/100000, cr = num(sr,'r',0)/100000, cb = num(sr,'b',0)/100000;
+    const fw = b.w / Math.max(0.01, 1 - cl - cr), fh = b.h / Math.max(0.01, 1 - ct - cb);
+    let tr = '';
+    if (r.flipH || r.flipV) tr = `transform:scale(${r.flipH ? -1 : 1},${r.flipV ? -1 : 1});`;
+    const alphaEl = blip && kid(blip, A, 'alphaModFix');
+    const op = alphaEl ? `opacity:${num(alphaEl,'amt',100000)/100000};` : '';
+    inner = `<div class="imgbox" style="${rad}${tr}${op}"><img src="${poster}" alt="" style="left:${(-cl*fw).toFixed(2)}px;top:${(-ct*fh).toFixed(2)}px;width:${fw.toFixed(2)}px;height:${fh.toFixed(2)}px"></div>`;
+  }
+  if (line) inner += `<div style="position:absolute;inset:${-line.width/2}px;border:${line.width}px ${line.dash && line.dash !== 'solid' ? 'dashed' : 'solid'} ${line.color};${rad}pointer-events:none"></div>`;
+  return `<div class="sh" style="${b.style}">${inner}</div>`;
+}
+
+function renderGroup(g, env){
+  const xf = q(g, 'p:grpSpPr', 'a:xfrm');
+  if (!xf) return renderTree(g, env);
+  const off = kid(xf, A, 'off'), ext = kid(xf, A, 'ext'), co = kid(xf, A, 'chOff'), ce = kid(xf, A, 'chExt');
+  const ox = num(off,'x',0), oy = num(off,'y',0), ew = num(ext,'cx',0), eh = num(ext,'cy',0);
+  const cx = num(co,'x',ox), cy = num(co,'y',oy), cw = num(ce,'cx',ew) || 1, chh = num(ce,'cy',eh) || 1;
+  const sx = ew / cw, sy = eh / chh, parent = env.T;
+  const T = rr => parent({ x: ox + (rr.x - cx) * sx, y: oy + (rr.y - cy) * sy, w: rr.w * sx, h: rr.h * sy });
+  const gf = readFill(kid(g, P, 'grpSpPr'), env.ctx, env.part, env);
+  return renderTree(g, Object.assign({}, env, { T, grpFill: gf && gf.type !== 'none' ? gf : env.grpFill }));
+}
+
+function renderFrame(gf, env){
+  const pc = phContext(gf, env);
+  if (pc.skip) return '';
+  const xf = xfrmOf(gf) || xfrmOf(pc.lph);
+  if (!xf) return '';
+  const r = rectOf(xf), b = boxStyle(r, env.T);
+  const gd = q(gf, 'a:graphic', 'a:graphicData');
+  const uri = gd ? gd.getAttribute('uri') || '' : '';
+  const tbl = gd && kid(gd, A, 'tbl');
+  if (tbl) return `<div class="sh" style="${b.style}">${renderTable(tbl, env)}</div>`;
+  let label = 'Этот объект не перенесён';
+  if (/chart/i.test(uri)) { env.warn('chart'); label = 'Диаграмма не перенесена'; }
+  else if (/diagram/i.test(uri)) { env.warn('smartart'); label = 'SmartArt не перенесён'; }
+  else if (/ole/i.test(uri)) {
+    const pic = gd.getElementsByTagNameNS(P, 'pic')[0];
+    if (pic) return renderPic(pic, env);
+    env.warn('ole'); label = 'Внедрённый объект не перенесён';
+  } else env.warn('other');
+  return `<div class="sh" style="${b.style}"><div class="miss">${label}</div></div>`;
+}
+
+function renderTable(tbl, env){
+  const ctx = env.ctx;
+  const cols = kids(q(tbl, 'a:tblGrid'), A, 'gridCol').map(c => px(num(c, 'w', 0)));
+  const tp = kid(tbl, A, 'tblPr');
+  const styled = !!(tp && kid(tp, A, 'tableStyleId'));
+  const firstRow = tp && tp.getAttribute('firstRow') === '1';
+  const band = tp && tp.getAttribute('bandRow') === '1';
+  const acc = ctx.theme.colors[ctx.clrMap.accent1 || 'accent1'] || [68,114,196];
+  const accCss = css({ rgb: acc, alpha: 1 });
+  const tintA = css({ rgb: acc.map(c => c + (255-c) * .8), alpha: 1 }), tintB = css({ rgb: acc.map(c => c + (255-c) * .9), alpha: 1 });
+  const total = cols.reduce((a,b)=>a+b, 0);
+  let html = `<table style="width:${total}px"><colgroup>${cols.map(w => `<col style="width:${w}px">`).join('')}</colgroup>`;
+  const base = { r: { color: css(readColor({ children: [mkScheme('tx1')] }, ctx)) } };
+  kids(tbl, A, 'tr').forEach((tr, ri) => {
+    html += `<tr style="height:${px(num(tr,'h',0))}px">`;
+    for (const tc of kids(tr, A, 'tc')){
+      if (tc.getAttribute('hMerge') === '1' || tc.getAttribute('vMerge') === '1') continue;
+      const tcPr = kid(tc, A, 'tcPr');
+      const st = [];
+      let fill = readFill(tcPr, ctx, env.part, env);
+      const header = styled && firstRow && ri === 0;
+      let textColor = null;
+      if (fill === undefined && styled){
+        if (header){ fill = { type: 'solid', color: accCss }; textColor = '#fff'; }
+        else if (band) fill = { type: 'solid', color: (ri - (firstRow ? 1 : 0)) % 2 === 0 ? tintA : tintB };
+        else fill = { type: 'solid', color: tintB };
+      }
+      const fc = fillCss(fill); if (fc) st.push('background:' + fc);
+      for (const [tag, side] of [['lnL','left'],['lnR','right'],['lnT','top'],['lnB','bottom']]){
+        const ln = kid(tcPr, A, tag);
+        const l = ln ? readLine(ln, null, ctx) : null;
+        if (l) st.push(`border-${side}:${l.width.toFixed(1)}px solid ${l.color}`);
+        else if (styled && !ln) st.push(`border-${side}:1px solid #fff`);
+      }
+      st.push(`padding:${px(num(tcPr,'marT',45720))}px ${px(num(tcPr,'marR',91440))}px ${px(num(tcPr,'marB',45720))}px ${px(num(tcPr,'marL',91440))}px`);
+      st.push('vertical-align:' + ({ ctr:'middle', b:'bottom' }[tcPr?.getAttribute('anchor')] || 'top'));
+      const layers = [base, env.deck.defaultTextStyle, textColor ? { r: { color: textColor, b: header ? '1' : undefined } } : null];
+      const txt = renderText(kid(tc, A, 'txBody'), { layers, ctx, part: env.part, env, fontScale: 1, lnRed: 0 });
+      const cs = num(tc, 'gridSpan', 1), rs = num(tc, 'rowSpan', 1);
+      html += `<td${cs > 1 ? ` colspan="${cs}"` : ''}${rs > 1 ? ` rowspan="${rs}"` : ''} style="${st.join(';')}">${txt}</td>`;
+    }
+    html += '</tr>';
+  });
+  return html + '</table>';
+}
+
+function backgroundOf(partObj, env){
+  const bg = q(partObj.root, 'p:cSld', 'p:bg');
+  if (!bg) return null;
+  const bgPr = kid(bg, P, 'bgPr');
+  if (bgPr){ const f = readFill(bgPr, env.ctx, partObj, env); if (f) return fillCss(f) || null; }
+  const ref = kid(bg, P, 'bgRef');
+  if (ref){
+    const col = readColor(ref, env.ctx);
+    const idx = num(ref, 'idx', 0);
+    if (idx >= 1001 && env.ctx.theme.bgFills[idx - 1001]){
+      const ctx2 = Object.assign({}, env.ctx, { phClr: col ? col.rgb : null });
+      const f = readFillEl(env.ctx.theme.bgFills[idx - 1001], ctx2, env.ctx.theme.part || partObj, env);
+      if (f && fillCss(f)) return fillCss(f);
+    }
+    return css(col);
+  }
+  return null;
+}
+
+const WARN_TEXT = {
+  chart: 'диаграммы (charts) заменены заглушками',
+  smartart: 'SmartArt заменён заглушкой',
+  img: v => `картинки в формате ${v} не отображаются браузерами и заменены заглушками`,
+  media: v => `видео или аудио (${v}) не перенесено, поддерживаются MP4, WebM, MP3, M4A, WAV`,
+  ole: 'внедрённые объекты (Excel, Word и т. п.) заменены заглушками',
+  ink: 'рукописные пометки не перенесены',
+  other: 'некоторые объекты не поддерживаются и заменены заглушками',
+  err: 'часть фигур не удалось разобрать, они пропущены'
+};
+
+function renderSlide(deck, i, urlFor, warnings){
+  const s = deck.slides[i];
+  const clrMapEl = q(s.master.root, 'p:clrMap');
+  const clrMap = {};
+  if (clrMapEl) for (const at of clrMapEl.attributes) clrMap[at.name] = at.value;
+  const ctx = { theme: s.theme, clrMap };
+  const warn = (k, v) => {
+    const key = k + (v ? ':' + v : '');
+    if (!warnings[key]) warnings[key] = { text: typeof WARN_TEXT[k] === 'function' ? WARN_TEXT[k](v) : WARN_TEXT[k], slides: new Set() };
+    warnings[key].slides.add(i + 1);
+  };
+  const T = r => r;
+  const common = { deck, ctx, T, urlFor, warn, layout: s.layout, master: s.master, slideNum: i + 1 };
+  const envM = Object.assign({}, common, { layer: 'master', part: s.master });
+  const envL = Object.assign({}, common, { layer: 'layout', part: s.layout });
+  const envS = Object.assign({}, common, { layer: 'slide', part: s.part });
+
+  const bg = backgroundOf(s.part, envS) || backgroundOf(s.layout, envL) || backgroundOf(s.master, envM) || '#fff';
+  const showMasterSlide = s.part.root.getAttribute('showMasterSp') !== '0';
+  const showMasterLayout = s.layout.root.getAttribute('showMasterSp') !== '0';
+  let html = '';
+  if (showMasterSlide && showMasterLayout){ const t = q(s.master.root, 'p:cSld', 'p:spTree'); if (t) html += renderTree(t, envM); }
+  if (showMasterSlide){ const t = q(s.layout.root, 'p:cSld', 'p:spTree'); if (t) html += renderTree(t, envL); }
+  const t = q(s.part.root, 'p:cSld', 'p:spTree'); if (t) html += renderTree(t, envS);
+  return { html, bg };
+}
+
+/* ---------- SCORM package ---------- */
+const xmlEsc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+function manifest(o){
+  const id = 'COURSE_' + Date.now().toString(36).toUpperCase();
+  const files = o.files.map(f => `      <file href="${xmlEsc(f)}"/>`).join('\n');
+  const t = xmlEsc(o.title);
+  if (o.version === '2004'){
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<manifest identifier="${id}" version="1"
+  xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"
+  xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_v1p3"
+  xmlns:adlseq="http://www.adlnet.org/xsd/adlseq_v1p3"
+  xmlns:adlnav="http://www.adlnet.org/xsd/adlnav_v1p3"
+  xmlns:imsss="http://www.imsglobal.org/xsd/imsss"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1 imscp_v1p1.xsd http://www.adlnet.org/xsd/adlcp_v1p3 adlcp_v1p3.xsd http://www.adlnet.org/xsd/adlseq_v1p3 adlseq_v1p3.xsd http://www.adlnet.org/xsd/adlnav_v1p3 adlnav_v1p3.xsd http://www.imsglobal.org/xsd/imsss imsss_v1p0.xsd">
+  <metadata>
+    <schema>ADL SCORM</schema>
+    <schemaversion>2004 3rd Edition</schemaversion>
+  </metadata>
+  <organizations default="ORG_1">
+    <organization identifier="ORG_1">
+      <title>${t}</title>
+      <item identifier="ITEM_1" identifierref="RES_1">
+        <title>${t}</title>
+      </item>
+    </organization>
+  </organizations>
+  <resources>
+    <resource identifier="RES_1" type="webcontent" adlcp:scormType="sco" href="index.html">
+${files}
+    </resource>
+  </resources>
+</manifest>
+`;
+  }
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<manifest identifier="${id}" version="1.0"
+  xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
+  xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.imsproject.org/xsd/imscp_rootv1p1p2 imscp_rootv1p1p2.xsd http://www.imsglobal.org/xsd/imsmd_rootv1p2p1 imsmd_rootv1p2p1.xsd http://www.adlnet.org/xsd/adlcp_rootv1p2 adlcp_rootv1p2.xsd">
+  <metadata>
+    <schema>ADL SCORM</schema>
+    <schemaversion>1.2</schemaversion>
+  </metadata>
+  <organizations default="ORG_1">
+    <organization identifier="ORG_1">
+      <title>${t}</title>
+      <item identifier="ITEM_1" identifierref="RES_1" isvisible="true">
+        <title>${t}</title>
+      </item>
+    </organization>
+  </organizations>
+  <resources>
+    <resource identifier="RES_1" type="webcontent" adlcp:scormtype="sco" href="index.html">
+${files}
+    </resource>
+  </resources>
+</manifest>
+`;
+}
+function slideCss(){
+  // copy shared .slide rules from this page's stylesheet
+  const out = [];
+  for (const sheet of document.styleSheets){
+    let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+    for (const r of rules) if (r.selectorText && /^\.slide/.test(r.selectorText)) out.push(r.cssText);
+  }
+  return out.join('\n');
+}
+function playerHtml(o){
+  const cfg = JSON.stringify({ w: o.W, h: o.H, version: o.version, completion: o.completion, status: o.status }).replace(/</g, '\\u003c');
+  const slides = o.slides.map((s, i) => `<section class="slide" aria-label="Слайд ${i+1}" style="width:${o.W}px;height:${o.H}px;background:${s.bg.replace(/"/g,'&quot;')}">${s.html}</section>`).join('\n');
+  return `<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(o.title)}</title>
+<style>
+${document.getElementById('tplPlayerCss').textContent.trim()}
+${slideCss()}
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="view"><div id="stage" style="width:${o.W}px;height:${o.H}px">
+${slides}
+  </div></main>
+  <nav id="bar" aria-label="Навигация по слайдам">
+    <button id="prev" type="button">Назад</button>
+    <span id="count" aria-live="polite"></span>
+    <button id="next" type="button">Вперёд</button>
+    <div id="prog" aria-hidden="true"><i></i></div>
+    <button id="fs" type="button">Во весь экран</button>
+  </nav>
+</div>
+<script>window.COURSE=${cfg};<\/script>
+<script>${document.getElementById('tplPlayerJs').textContent.trim()}<\/script>
+</body>
+</html>
+`;
+}
+async function buildPackage(deck, opts){
+  const used = new Map();
+  const urlFor = path => {
+    if (!used.has(path)){
+      let name = basename(path).replace(/[^\w.\-]/g, '_');
+      while ([...used.values()].includes(name)) name = '_' + name;
+      used.set(path, name);
+    }
+    return 'media/' + used.get(path);
+  };
+  const warnings = {};
+  const W = px(deck.W), H = px(deck.H);
+  const slides = [];
+  deck.slides.forEach((s, i) => { if (opts.skipHidden && s.hidden) return; slides.push(renderSlide(deck, i, urlFor, warnings)); });
+  const zip = new JSZip();
+  zip.file('index.html', playerHtml({ title: opts.title, W, H, slides, version: opts.version, completion: opts.completion, status: opts.status }));
+  const files = ['index.html'];
+  for (const [path, name] of used){
+    if (deck.media[path]){ zip.file('media/' + name, deck.media[path]); files.push('media/' + name); }
+  }
+  zip.file('imsmanifest.xml', manifest({ title: opts.title, version: opts.version, files }));
+  return zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } }, null);
+}
+
+/* ---------- File name ---------- */
+const TR = {а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'e',ж:'zh',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'h',ц:'ts',ч:'ch',ш:'sh',щ:'sch',ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya',і:'i',ў:'u',є:'e',ї:'i'};
+function slug(s){
+  const t = s.toLowerCase().split('').map(c => TR[c] !== undefined ? TR[c] : c).join('').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+  return t || 'course';
+}
+
+/* ---------- UI ---------- */
+const $ = id => document.getElementById(id);
+const drop = $('drop'), fileIn = $('file'), statusEl = $('status');
+let deck = null, previewUrls = {}, previewSlides = [], lbIndex = 0;
+const downloadsP = (window.claude && typeof window.claude.use === 'function') ? window.claude.use('downloads').catch(() => null) : Promise.resolve(null);
+
+function setStatus(t, err){ statusEl.textContent = t; statusEl.className = 'status' + (err ? ' err' : ''); }
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) handleFile(f); });
+fileIn.addEventListener('change', () => { if (fileIn.files[0]) handleFile(fileIn.files[0]); fileIn.value = ''; });
+
+async function handleFile(file){
+  if (/\.ppt$/i.test(file.name)) { setStatus('Это старый формат .ppt. Откройте файл в PowerPoint и сохраните как .pptx, затем загрузите снова.', true); return; }
+  if (!/\.(pptx|ppsx|potx)$/i.test(file.name)) { setStatus('Нужен файл .pptx. Сейчас выбран «' + file.name + '».', true); return; }
+  if (typeof JSZip === 'undefined') { setStatus('Не загрузилась библиотека для чтения архивов. Проверьте интернет и обновите страницу.', true); return; }
+  drop.classList.add('busy'); setStatus('Читаю «' + file.name + '»…');
+  try {
+    const d = await loadDeck(await file.arrayBuffer());
+    Object.values(previewUrls).forEach(u => URL.revokeObjectURL(u)); previewUrls = {};
+    deck = d; deck.fileName = file.name;
+    showDeck();
+    setStatus('Готово: «' + file.name + '» прочитан.');
+  } catch (e) {
+    console.error(e);
+    setStatus('Не получилось прочитать файл: ' + (e && e.message ? e.message : e) + '. Убедитесь, что это презентация PowerPoint и что она не защищена паролем.', true);
+  } finally { drop.classList.remove('busy'); }
+}
+
+function previewUrl(path){
+  if (!previewUrls[path] && deck.media[path]) previewUrls[path] = URL.createObjectURL(deck.media[path]);
+  return previewUrls[path] || '';
+}
+
+function showDeck(){
+  const warnings = {};
+  previewSlides = deck.slides.map((s, i) => renderSlide(deck, i, previewUrl, warnings));
+  const W = px(deck.W), H = px(deck.H);
+  const grid = $('grid'); grid.innerHTML = '';
+  previewSlides.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'thumb' + (deck.slides[i].hidden ? ' hidden-slide' : '');
+    b.setAttribute('aria-label', 'Открыть слайд ' + (i+1));
+    b.innerHTML = `<div class="frame" style="aspect-ratio:${W}/${H}"><div class="holder"><div class="slide" style="width:${W}px;height:${H}px;background:${s.bg.replace(/"/g,'&quot;')}">${s.html}</div></div></div><span class="cap">Слайд ${i+1}${deck.slides[i].hidden ? ', скрытый' : ''}</span>`;
+    b.querySelectorAll('a,video,audio').forEach(el => { el.tabIndex = -1; el.removeAttribute('controls'); el.style.pointerEvents = 'none'; });
+    b.onclick = () => openLb(i);
+    grid.appendChild(b);
+  });
+  scaleThumbs();
+  const ratio = (W / H).toFixed(2);
+  const fmt = Math.abs(W/H - 16/9) < .02 ? '16:9' : Math.abs(W/H - 4/3) < .02 ? '4:3' : Math.abs(W/H - 16/10) < .02 ? '16:10' : ratio + ':1';
+  const n = deck.slides.length, hid = deck.slides.filter(s => s.hidden).length;
+  $('meta').textContent = `${n} ${plural(n, 'слайд', 'слайда', 'слайдов')}, формат ${fmt}. Нажмите на слайд, чтобы рассмотреть его.`;
+  const keys = Object.keys(warnings);
+  const wb = $('warns');
+  if (keys.length){
+    wb.hidden = false;
+    wb.innerHTML = '<h3>Что перенесётся не полностью</h3><ul>' + keys.map(k => {
+      const sl = [...warnings[k].slides].sort((a,b)=>a-b);
+      return `<li>${esc(capitalize(warnings[k].text))}: ${sl.length > 1 ? 'слайды' : 'слайд'} ${sl.join(', ')}</li>`;
+    }).join('') + '</ul>';
+  } else { wb.hidden = true; wb.innerHTML = ''; }
+  $('hiddenField').hidden = !hid;
+  $('hiddenTxt').textContent = `Не включать скрытые слайды (${hid})`;
+  $('title').value = deck.title || deck.fileName.replace(/\.[^.]+$/, '');
+  $('done').textContent = ''; $('done').className = 'done';
+  $('result').classList.add('on');
+  $('result').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+}
+const capitalize = s => s.charAt(0).toUpperCase() + s.slice(1);
+function plural(n, one, few, many){ const m10 = n % 10, m100 = n % 100; if (m10 === 1 && m100 !== 11) return one; if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few; return many; }
+function scaleThumbs(){
+  if (!deck) return;
+  const W = px(deck.W);
+  document.querySelectorAll('#grid .frame').forEach(f => { f.firstElementChild.style.transform = `scale(${f.clientWidth / W})`; });
+}
+new ResizeObserver(scaleThumbs).observe($('grid'));
+
+// lightbox
+const lb = $('lb'), lbStage = $('lbStage'), lbArea = $('lbArea');
+let lbReturn = null;
+function openLb(i){ lbReturn = document.activeElement; lb.classList.add('on'); lbShow(i); $('lbClose').focus(); }
+function closeLb(){ lb.classList.remove('on'); lbStage.innerHTML = ''; if (lbReturn) lbReturn.focus(); }
+function lbShow(i){
+  lbIndex = (i + previewSlides.length) % previewSlides.length;
+  const W = px(deck.W), H = px(deck.H), s = previewSlides[lbIndex];
+  lbStage.style.width = W + 'px'; lbStage.style.height = H + 'px';
+  lbStage.innerHTML = `<div class="slide" style="width:${W}px;height:${H}px;background:${s.bg.replace(/"/g,'&quot;')}">${s.html}</div>`;
+  $('lbCount').textContent = (lbIndex + 1) + ' / ' + previewSlides.length;
+  lbFit();
+}
+function lbFit(){ if (!deck || !lb.classList.contains('on')) return; const W = px(deck.W), H = px(deck.H); const sc = Math.min(lbArea.clientWidth / W, lbArea.clientHeight / H); lbStage.style.transform = `translate(-50%,-50%) scale(${sc})`; }
+window.addEventListener('resize', lbFit);
+$('lbPrev').onclick = () => lbShow(lbIndex - 1);
+$('lbNext').onclick = () => lbShow(lbIndex + 1);
+$('lbClose').onclick = closeLb;
+lb.addEventListener('click', e => { if (e.target === lb || e.target === lbArea) closeLb(); });
+document.addEventListener('keydown', e => {
+  if (!lb.classList.contains('on')) return;
+  if (e.key === 'Escape') closeLb();
+  else if (e.key === 'ArrowRight') lbShow(lbIndex + 1);
+  else if (e.key === 'ArrowLeft') lbShow(lbIndex - 1);
+});
+
+// build
+$('go').onclick = async () => {
+  if (!deck) return;
+  const go = $('go'), done = $('done');
+  const title = $('title').value.trim() || 'Курс';
+  const opts = {
+    title,
+    version: document.querySelector('input[name=ver]:checked').value,
+    completion: document.querySelector('input[name=crit]:checked').value,
+    status: document.querySelector('input[name=st]:checked').value,
+    skipHidden: !$('hiddenField').hidden && $('skipHidden').checked
+  };
+  go.disabled = true; done.className = 'done'; done.textContent = 'Собираю пакет…';
+  try {
+    const blob = await buildPackage(deck, opts);
+    const filename = `${slug(title)}-scorm${opts.version === '2004' ? '2004' : '12'}.zip`;
+    const mb = (blob.size / 1048576).toFixed(1);
+    const dl = await downloadsP;
+    let saved = false;
+    if (dl){
+      try { await dl.save({ filename, data: blob }); saved = true; done.className = 'done ok'; done.textContent = `Пакет сохранён: ${filename}, ${mb} МБ.`; }
+      catch (e) {
+        if (e && e.code === 'declined') { done.textContent = 'Сохранение отменено. Нажмите кнопку ещё раз, когда будете готовы.'; return; }
+        if (e && e.code === 'rate_limited') { done.textContent = 'Окно сохранения уже открыто. Подтвердите или закройте его.'; return; }
+        if (e && !['unavailable','not_granted','capability_disabled','capability_removed'].includes(e.code)) { throw new Error(e.message || e.code); }
+      }
+    }
+    if (!saved){
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+      done.className = 'done ok'; done.textContent = `Пакет готов: ${filename}, ${mb} МБ.`;
+    }
+  } catch (e) {
+    console.error(e);
+    done.className = 'done err'; done.textContent = 'Не удалось собрать пакет: ' + (e && e.message ? e.message : e);
+  } finally { go.disabled = false; }
+};
+$('again').onclick = () => fileIn.click();
+
+})();
+</script>
+</body>
+</html>
