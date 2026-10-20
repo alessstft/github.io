@@ -287,12 +287,6 @@ aside.panel{position:sticky;top:calc(16px + env(safe-area-inset-top,0px));backgr
     </aside>
   </section>
 
-  <section class="how">
-    <h2>Что переносится</h2>
-    <p>Текст с форматированием, фигуры, линии, картинки, таблицы, фоны и оформление из образца слайдов, ссылки и видео в формате MP4. Каждый слайд собирается в HTML, поэтому текст остаётся чётким на любом экране.</p>
-    <p>Анимации и переходы, диаграммы (charts), SmartArt, формулы и картинки EMF/WMF не переносятся: вместо них будет заглушка, а конвертер покажет, на каких слайдах это случилось. Если какой-то слайд выглядит не так, проще всего в PowerPoint сохранить проблемный объект как картинку и вставить её обратно.</p>
-    <p>Внутри пакета есть плеер с кнопками, стрелками на клавиатуре и полноэкранным режимом. Он запоминает, на каком слайде остановился слушатель, и передаёт в LMS статус прохождения.</p>
-  </section>
 </div>
 
 <div class="wrap view" id="view-moodle" hidden>
@@ -340,17 +334,6 @@ aside.panel{position:sticky;top:calc(16px + env(safe-area-inset-top,0px));backgr
     </aside>
   </section>
 
-  <section class="how">
-    <h2>Как заполняются колонки</h2>
-    <ul class="rules">
-      <li><code>username</code>: фамилия и имя латиницей через точку, строчными буквами, например <code>ivanova.galina</code>. Если логины совпадают, к следующему добавляется цифра: <code>ivanova.galina2</code>.</li>
-      <li><code>password</code>: пароль из реестра, а если его нет, то логин плюс окончание, например <code>ivanova.galina12345</code>.</li>
-      <li><code>firstname</code>: имя и отчество через пробел. <code>lastname</code>: фамилия по-русски.</li>
-      <li><code>email</code>: почта из реестра, а если её нет, то <code>логин@mail.ru</code>.</li>
-      <li><code>course1</code>, <code>role1</code>, <code>course2</code>, <code>role2</code> и дальше: курсы слушателя в порядке строк реестра, с ролью <code>student</code>.</li>
-    </ul>
-    <p style="margin-top:12px">Файл сохраняется в кодировке UTF-8 с разделителем «;». В Moodle при загрузке выберите разделитель «;» и кодировку UTF-8.</p>
-  </section>
 </div>
 
 <div class="wrap view" id="view-reestr" hidden>
@@ -413,16 +396,6 @@ aside.panel{position:sticky;top:calc(16px + env(safe-area-inset-top,0px));backgr
     </aside>
   </section>
 
-  <section class="how">
-    <h2>Как заполняется реестр</h2>
-    <ul class="rules">
-      <li>Каждая программа слушателя становится отдельной строкой. ФИО делится на фамилию, имя и отчество, первые буквы делаются заглавными: «Щукина александра» станет «Щукина Александра».</li>
-      <li>Должность пишется с заглавной буквы, СНИЛС и программа переносятся как есть, дата в реестре берётся из колонки «Дата проверки знаний».</li>
-      <li>Протоколы нумеруются по порядку. У слушателей с одной датой проверки и одной программой номер протокола общий, как в одной комиссии.</li>
-      <li>Первый номер протокола по умолчанию следует за последним номером в загруженном файле реестра. Его можно поменять.</li>
-      <li>Файл реестра запоминается в этом браузере, поэтому в следующий раз достаточно загрузить только заявку.</li>
-    </ul>
-  </section>
 </div>
 
 <div class="wrap view" id="view-protocols" hidden>
@@ -473,16 +446,6 @@ aside.panel{position:sticky;top:calc(16px + env(safe-area-inset-top,0px));backgr
     </aside>
   </section>
 
-  <section class="how">
-    <h2>Что попадает в протокол</h2>
-    <ul class="rules">
-      <li>Номер и дата протокола берутся из реестра: «ПРОТОКОЛ № 2137 от «16» сентября 2026 года».</li>
-      <li>Название программы пишется без номера, объём в часах берётся из настроек справа.</li>
-      <li>В таблице: регистрационный номер, ФИО, должность, место работы, «Уд.» или «Неуд.» и дата проверки.</li>
-      <li>Шапка академии, состав комиссии и подписи остаются как в образце. Если состав комиссии поменяется, шаблон нужно будет обновить.</li>
-      <li>Файлы называются как в образце: <code>2137_Б_СПб_ГБУЗ_Детская_городская_поликлиника___35.docx</code>.</li>
-    </ul>
-  </section>
 </div>
 
 <div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Просмотр слайда">
@@ -2608,7 +2571,7 @@ function render(){
   const g = groups();
   const place = clean($('pPlace').value);
   document.querySelectorAll('#pProgs .prog-row').forEach(row => row.querySelectorAll('input').forEach(inp => inp.classList.toggle('need', !clean(inp.value))));
-  let html = '<table><thead><tr><th scope="col">Протокол</th><th scope="col">Дата</th><th scope="col">Программа</th><th scope="col">Слушатели</th><th scope="col">Файл</th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th scope="col">Протокол</th><th scope="col">Дата проверки</th><th scope="col">Программа</th><th scope="col">Слушатели</th><th scope="col">Файл</th></tr></thead><tbody>';
   let missing = false;
   for (const p of g.list){
     const code = codeFor(p.prog), h = hoursFor(p.prog);
@@ -2659,11 +2622,11 @@ async function makeDocx(p, place){
     .replace('{{DATE}}', r.date != null ? fmtDate(r.date) : '')
   ).join('');
   xml = xml.slice(0, trStart) + rows + xml.slice(trEnd);
-  const d = p.date != null ? sDate(p.date) : null;
+  const d = new Date(); // protocol is dated the day it is generated
   xml = xml.replace('{{NUM}}', xesc(p.num))
-    .replace('{{DAY}}', d ? String(d.getUTCDate()) : '___')
-    .replace('{{MONTH}}', d ? MONTHS_GEN[d.getUTCMonth()] : '________')
-    .replace('{{YEAR}}', d ? String(d.getUTCFullYear()) : '20__')
+    .replace('{{DAY}}', String(d.getDate()))
+    .replace('{{MONTH}}', MONTHS_GEN[d.getMonth()])
+    .replace('{{YEAR}}', String(d.getFullYear()))
     .replace('{{PROGRAM}}', xesc(progTitle(p.prog)))
     .replace('{{HOURS}}', xesc(hoursText(hoursFor(p.prog))));
   zip.file('word/document.xml', xml);
@@ -2717,8 +2680,7 @@ $('pGo').onclick = async () => {
   go.disabled = true; done.className = 'done'; done.textContent = 'Собираю протоколы…';
   try {
     const res = await buildAll();
-    const dates = res.list.map(p => p.date).filter(d => d != null);
-    const month = dates.length ? MONTHS[sDate(Math.max(...dates)).getUTCMonth()] : '';
+    const month = MONTHS[new Date().getMonth()];
     const filename = `Протоколы_${fileSafe(clean($('pPlace').value)).replace(/_+/g, '_')}${month ? '_' + month : ''}.zip`;
     const dl = await window.__dlP;
     let saved = false;
