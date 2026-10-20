@@ -106,10 +106,11 @@ aside.panel{position:sticky;top:calc(16px + env(safe-area-inset-top,0px));backgr
 [hidden]{display:none !important}
 .back{display:inline-block;margin-bottom:28px;color:var(--muted);text-decoration:none;font-size:15px}
 .back:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
-.tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:28px;margin-top:44px;max-width:900px}
+.tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:28px;margin-top:44px;max-width:1080px}
 .tool{position:relative;display:block;text-decoration:none;color:var(--ink)}
 .tool::before{content:"";position:absolute;inset:0;border-radius:14px;background:var(--accent);transform:translate(8px,8px);transition:transform .15s}
 .tool:nth-child(2)::before{background:var(--tape)}
+.tool:nth-child(3)::before{background:var(--muted)}
 .tool .card{position:relative;background:var(--surface);border:2px solid var(--ink);border-radius:14px;padding:28px 26px 26px;min-height:220px;display:flex;flex-direction:column;gap:10px;transition:transform .15s}
 .tool:hover .card,.tool:focus-visible .card{transform:translate(-3px,-3px)}
 .tool:hover::before,.tool:focus-visible::before{transform:translate(11px,11px)}
@@ -144,6 +145,21 @@ aside.panel{position:sticky;top:calc(16px + env(safe-area-inset-top,0px));backgr
 .rules li{margin:4px 0}
 .rules code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:0 4px;color:var(--ink)}
 
+/* Application → registry */
+#rResult{display:none;margin-top:48px;grid-template-columns:minmax(0,1fr) 360px;gap:32px;align-items:start}
+#rResult.on{display:grid}
+@media (max-width:880px){#rResult.on{grid-template-columns:1fr}}
+.tpl{margin:36px 0 0;max-width:720px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:16px 18px;border:1px dashed var(--line);border-radius:12px;background:var(--surface)}
+.tpl .t-name{flex:1;min-width:220px;font-size:15px}
+.tpl .t-name b{font-weight:600}
+.tpl.missing{border-color:var(--warn);background:var(--warn-bg);color:var(--warn)}
+.tpl button,.tpl label.btn{border:1px solid var(--line);background:var(--sunken);color:var(--ink);border-radius:8px;padding:8px 14px;cursor:pointer;font-size:14.5px}
+.tpl input{position:absolute;width:1px;height:1px;opacity:0}
+.tpl input:focus-visible + label.btn{outline:3px solid var(--accent);outline-offset:2px}
+.tpl + .drop{margin-top:34px}
+.field select{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--sunken)}
+.field .full{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--sunken)}
+
 /* Lightbox */
 .lb{position:fixed;inset:0;z-index:50;background:rgba(10,14,26,.86);display:none;flex-direction:column;
   padding:calc(12px + env(safe-area-inset-top,0px)) 12px calc(12px + env(safe-area-inset-bottom,0px))}
@@ -177,17 +193,23 @@ aside.panel{position:sticky;top:calc(16px + env(safe-area-inset-top,0px));backgr
     <p>Готовим материалы и списки слушателей к загрузке в систему дистанционного обучения. Файлы обрабатываются прямо в браузере и никуда не отправляются.</p>
   </header>
   <nav class="tools" aria-label="Инструменты">
+    <a class="tool" href="#reestr"><div class="card">
+      <span class="fmt">Заявка в XLSM</span>
+      <h2>Заявка в реестр</h2>
+      <p>Переносит слушателей из заявки организации в реестр обучения с макросом, нумерует строки и протоколы.</p>
+      <span class="open">Открыть преобразование</span>
+    </div></a>
+    <a class="tool" href="#moodle"><div class="card">
+      <span class="fmt">XLSX в CSV</span>
+      <h2>Реестр в список слушателей</h2>
+      <p>Делает из Excel-реестра обучения CSV для массовой загрузки пользователей в Moodle и записи на курсы.</p>
+      <span class="open">Открыть преобразование</span>
+    </div></a>
     <a class="tool" href="#scorm"><div class="card">
       <span class="fmt">PPTX в ZIP</span>
       <h2>Презентация в SCORM</h2>
       <p>Превращает презентацию PowerPoint в SCORM-пакет для курса.</p>
       <span class="open">Открыть конвертер</span>
-    </div></a>
-    <a class="tool" href="#moodle"><div class="card">
-      <span class="fmt">XLSX в CSV</span>
-      <h2>Реестр в список слушателей</h2>
-      <p>Делает из Excel-реестра обучения CSV для массовой загрузки пользователей и записи на курсы.</p>
-      <span class="open">Открыть преобразование</span>
     </div></a>
   </nav>
 </div>
@@ -312,6 +334,78 @@ aside.panel{position:sticky;top:calc(16px + env(safe-area-inset-top,0px));backgr
       <li><code>course1</code>, <code>role1</code>, <code>course2</code>, <code>role2</code> и дальше: курсы слушателя в порядке строк реестра, с ролью <code>student</code>.</li>
     </ul>
     <p style="margin-top:12px">Файл сохраняется в кодировке UTF-8 с разделителем «;». В Moodle при загрузке выберите разделитель «;» и кодировку UTF-8.</p>
+  </section>
+</div>
+
+<div class="wrap view" id="view-reestr" hidden>
+  <a class="back" href="#">← Все инструменты</a>
+  <header>
+    <h1>Заявка в реестр обучения</h1>
+    <p>Загрузите заявку организации (.xlsx), и слушатели перенесутся в ваш файл реестра с макросом: по строке на каждую программу, с номерами протоколов, датами и результатом. Всё остальное в файле реестра (макросы, листы, оформление) остаётся как было.</p>
+  </header>
+
+  <div class="tpl" id="rTpl">
+    <span class="t-name" id="rTplName"></span>
+    <input type="file" id="rTplFile" accept=".xlsm,.xlsx,application/vnd.ms-excel.sheet.macroEnabled.12">
+    <label class="btn" for="rTplFile" id="rTplBtn">Выбрать файл реестра</label>
+    <button type="button" id="rTplForget" hidden>Забыть</button>
+  </div>
+
+  <div class="drop" id="rDrop">
+    <input type="file" id="rFile" accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+    <label for="rFile">
+      <span class="big">Перетащите сюда заявку</span>
+      <span class="small">Нужны колонки «ФИО», «СНИЛС», «Должность», программа и «Дата проверки знаний»</span>
+      <span class="pick">Выбрать файл</span>
+    </label>
+  </div>
+  <p class="status" id="rStatus" role="status" aria-live="polite"></p>
+
+  <section id="rResult" aria-label="Результат">
+    <div>
+      <div class="step-h"><span class="n">2</span><h2>Проверьте реестр</h2></div>
+      <p class="meta" id="rMeta"></p>
+      <div class="tbl-wrap" id="rTable"></div>
+      <div class="warns" id="rWarns" hidden></div>
+    </div>
+    <aside class="panel">
+      <div class="step-h"><span class="n">3</span><h2>Настройки</h2></div>
+      <div class="field row2">
+        <div><label for="rProto">Первый номер протокола</label><input type="text" id="rProto" inputmode="numeric"></div>
+        <div><label for="rResultSel">Результат</label>
+          <select id="rResultSel" class="full"><option>удовлетворительно</option><option>неудовлетворительно</option></select></div>
+      </div>
+      <div class="field">
+        <span class="lbl">Порядок программ у слушателя</span>
+        <label class="radio"><input type="radio" name="rOrder" value="desc" checked> <span>от большего номера к меньшему (сначала 4, потом 1)</span></label>
+        <label class="radio"><input type="radio" name="rOrder" value="asis"> <span>как в заявке</span></label>
+      </div>
+      <hr>
+      <div class="field">
+        <label class="lbl" for="rOrgName">Обучающая организация</label>
+        <input type="text" id="rOrgName" class="full">
+        <div class="row2" style="margin-top:10px"><div style="grid-column:1/-1"><label for="rOrgInn">ИНН обучающей организации</label><input type="text" id="rOrgInn" inputmode="numeric"></div></div>
+      </div>
+      <div class="field">
+        <label class="lbl" for="rEmpName">Работодатель (лист «Настройки»)</label>
+        <input type="text" id="rEmpName" class="full" placeholder="Наименование работодателя">
+        <div class="row2" style="margin-top:10px"><div style="grid-column:1/-1"><label for="rEmpInn">ИНН работодателя</label><input type="text" id="rEmpInn" inputmode="numeric"></div></div>
+      </div>
+      <button class="go" id="rGo" type="button">Скачать реестр</button>
+      <p class="done" id="rDone" role="status" aria-live="polite"></p>
+      <button class="again" id="rAgain" type="button">Загрузить другую заявку</button>
+    </aside>
+  </section>
+
+  <section class="how">
+    <h2>Как заполняется реестр</h2>
+    <ul class="rules">
+      <li>Каждая программа слушателя становится отдельной строкой. ФИО делится на фамилию, имя и отчество, первые буквы делаются заглавными: «Щукина александра» станет «Щукина Александра».</li>
+      <li>Должность пишется с заглавной буквы, СНИЛС и программа переносятся как есть, дата в реестре берётся из колонки «Дата проверки знаний».</li>
+      <li>Протоколы нумеруются по порядку. У слушателей с одной датой проверки и одной программой номер протокола общий, как в одной комиссии.</li>
+      <li>Первый номер протокола по умолчанию следует за последним номером в загруженном файле реестра. Его можно поменять.</li>
+      <li>Файл реестра запоминается в этом браузере, поэтому в следующий раз достаточно загрузить только заявку.</li>
+    </ul>
   </section>
 </div>
 
@@ -1625,12 +1719,12 @@ $('again').onclick = () => fileIn.click();
 <script>
 /* ===== Router ===== */
 (function(){
-  const views = { '': 'view-home', scorm: 'view-scorm', moodle: 'view-moodle' };
+  const views = { '': 'view-home', scorm: 'view-scorm', moodle: 'view-moodle', reestr: 'view-reestr' };
   function route(){
     const key = location.hash.replace(/^#/, '');
     const id = views[key] || 'view-home';
     document.querySelectorAll('.view').forEach(v => { v.hidden = v.id !== id; });
-    document.title = id === 'view-scorm' ? 'Презентация в SCORM' : id === 'view-moodle' ? 'Реестр в CSV для Moodle' : 'Инструменты для Moodle';
+    document.title = { 'view-scorm': 'Презентация в SCORM', 'view-moodle': 'Реестр в CSV для Moodle', 'view-reestr': 'Заявка в реестр' }[id] || 'Инструменты для Moodle';
     window.scrollTo(0, 0);
     window.dispatchEvent(new Event('resize'));
   }
@@ -1872,6 +1966,411 @@ $('mGo').onclick = async () => {
 };
 
 window.__registry = { readWorkbook, group, build: () => build(), render: () => { renderMap(); return render(); }, setData: (d, m) => { data = d; mapping = m; } };
+})();
+</script>
+<script>
+/* ===== Application → registry (.xlsm) ===== */
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const MAIN = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+const clean = v => String(v == null ? '' : v).replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const xesc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const MONTHS = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+const LS_TPL = 'reestrTemplate';
+function plural(n, one, few, many){ const a = n % 10, b = n % 100; if (a === 1 && b !== 11) return one; if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return few; return many; }
+const cap = w => w ? w.charAt(0).toUpperCase() + w.slice(1) : w;
+function capWord(w){
+  return w.split('-').map(part => {
+    const lowerish = part === part.toLowerCase() || part === part.toUpperCase();
+    return lowerish ? cap(part.toLowerCase()) : cap(part);
+  }).join('-');
+}
+function serialToDate(n){ const d = new Date(Date.UTC(1899, 11, 30) + Math.round(n) * 86400000); return d; }
+function fmtDate(n){ if (typeof n !== 'number') return ''; const d = serialToDate(n); return String(d.getUTCDate()).padStart(2,'0') + '.' + String(d.getUTCMonth()+1).padStart(2,'0') + '.' + d.getUTCFullYear(); }
+function toSerial(v){
+  if (typeof v === 'number' && isFinite(v)) return Math.round(v);
+  if (v instanceof Date) return Math.round((Date.UTC(v.getFullYear(), v.getMonth(), v.getDate()) - Date.UTC(1899, 11, 30)) / 86400000);
+  const m = clean(v).match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})/);
+  if (m){ let y = +m[3]; if (y < 100) y += 2000; return Math.round((Date.UTC(y, +m[2]-1, +m[1]) - Date.UTC(1899, 11, 30)) / 86400000); }
+  return null;
+}
+function fmtSnils(v){
+  if (typeof v === 'number'){ const d = String(Math.round(v)).padStart(11, '0'); return `${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6,9)} ${d.slice(9)}`; }
+  return clean(v);
+}
+const progNum = p => { const m = String(p).match(/^\s*(\d+)/); return m ? +m[1] : 0; };
+
+/* ---------- Template (registry .xlsm) ---------- */
+let tpl = null; // {name, buf, info}
+async function inspectTemplate(buf){
+  const zip = await JSZip.loadAsync(buf);
+  const wbXml = await zip.file('xl/workbook.xml').async('string');
+  const relsXml = await zip.file('xl/_rels/workbook.xml.rels').async('string');
+  const doc = new DOMParser().parseFromString(wbXml, 'application/xml');
+  const rels = new DOMParser().parseFromString(relsXml, 'application/xml');
+  const relMap = {};
+  for (const r of rels.getElementsByTagName('Relationship')) relMap[r.getAttribute('Id')] = r.getAttribute('Target');
+  const sheets = {};
+  for (const sh of doc.getElementsByTagName('sheet')){
+    const rid = sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
+    let t = relMap[rid] || ''; t = t.startsWith('/') ? t.slice(1) : 'xl/' + t;
+    sheets[sh.getAttribute('name')] = t;
+  }
+  const regPath = sheets['Реестр'];
+  if (!regPath || !zip.file(regPath)) throw new Error('в файле нет листа «Реестр»');
+  // shared strings
+  let sst = [];
+  const sf = zip.file('xl/sharedStrings.xml');
+  if (sf){
+    const sd = new DOMParser().parseFromString(await sf.async('string'), 'application/xml');
+    sst = Array.from(sd.getElementsByTagNameNS(MAIN, 'si')).map(si => Array.from(si.getElementsByTagNameNS(MAIN, 't')).map(t => t.textContent).join(''));
+  }
+  const sheetXml = await zip.file(regPath).async('string');
+  const sdoc = new DOMParser().parseFromString(sheetXml, 'application/xml');
+  const val = c => {
+    if (!c) return '';
+    const t = c.getAttribute('t'), v = c.getElementsByTagNameNS(MAIN, 'v')[0];
+    if (t === 's') return v ? (sst[+v.textContent] || '') : '';
+    if (t === 'inlineStr') return Array.from(c.getElementsByTagNameNS(MAIN, 't')).map(x => x.textContent).join('');
+    return v ? v.textContent : '';
+  };
+  let maxProto = 0, orgName = '', orgInn = '', lastRow = 4, dataStyles = null, blankStyles = null;
+  for (const row of sdoc.getElementsByTagNameNS(MAIN, 'row')){
+    const r = +row.getAttribute('r');
+    lastRow = Math.max(lastRow, r);
+    if (r < 5) continue;
+    const cells = {};
+    for (const c of row.getElementsByTagNameNS(MAIN, 'c')) cells[c.getAttribute('r').replace(/\d+/g, '')] = c;
+    const styles = 'ABCDEFGHIJKLM'.split('').map(col => cells[col] ? cells[col].getAttribute('s') : null);
+    if (val(cells.E)) { if (!dataStyles) dataStyles = styles; }
+    else blankStyles = styles;
+    const pr = parseInt(val(cells.M), 10); if (!isNaN(pr)) maxProto = Math.max(maxProto, pr);
+    if (!orgName && val(cells.C)) orgName = val(cells.C);
+    if (!orgInn && val(cells.D)) orgInn = val(cells.D);
+  }
+  let empInn = '', empName = '';
+  const setPath = sheets['Настройки'];
+  if (setPath && zip.file(setPath)){
+    const d2 = new DOMParser().parseFromString(await zip.file(setPath).async('string'), 'application/xml');
+    for (const c of d2.getElementsByTagNameNS(MAIN, 'c')){
+      if (c.getAttribute('r') === 'B1') empInn = val(c);
+      if (c.getAttribute('r') === 'B2') empName = val(c);
+    }
+  }
+  return { regPath, setPath, maxProto, orgName, orgInn, lastRow, dataStyles: dataStyles || blankStyles, blankStyles: blankStyles || dataStyles, empInn, empName };
+}
+
+function b64(buf){ let s = ''; const a = new Uint8Array(buf); for (let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000)); return btoa(s); }
+function unb64(str){ const s = atob(str); const a = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a.buffer; }
+
+async function setTemplate(name, buf, remember){
+  const info = await inspectTemplate(buf);
+  tpl = { name, buf, info };
+  if (remember){ try { localStorage.setItem(LS_TPL, JSON.stringify({ name, data: b64(buf) })); } catch (e) {} }
+  showTpl();
+  if (data) applyDefaults(true), render();
+}
+function showTpl(){
+  const box = $('rTpl'), name = $('rTplName');
+  if (tpl){
+    box.classList.remove('missing');
+    name.innerHTML = `Файл реестра: <b>${esc(tpl.name)}</b>` + (tpl.info.maxProto ? `, последний протокол № ${tpl.info.maxProto}` : '');
+    $('rTplBtn').textContent = 'Заменить'; $('rTplForget').hidden = false;
+  } else {
+    box.classList.add('missing');
+    name.textContent = 'Сначала загрузите ваш файл реестра .xlsm с макросом, подойдёт реестр любого прошлого месяца. Новые строки запишутся в него.';
+    $('rTplBtn').textContent = 'Выбрать файл реестра'; $('rTplForget').hidden = true;
+  }
+}
+$('rTplFile').addEventListener('change', async () => {
+  const f = $('rTplFile').files[0]; $('rTplFile').value = '';
+  if (!f) return;
+  try { await setTemplate(f.name, await f.arrayBuffer(), true); setStatus('Файл реестра «' + f.name + '» запомнен.'); }
+  catch (e) { setStatus('Этот файл не подходит как реестр: ' + (e.message || e) + '.', true); }
+});
+$('rTplForget').onclick = () => { tpl = null; try { localStorage.removeItem(LS_TPL); } catch (e) {} showTpl(); if (data) render(); };
+(async () => {
+  try {
+    const st = JSON.parse(localStorage.getItem(LS_TPL) || 'null');
+    if (st && st.data) await setTemplate(st.name, unb64(st.data), false);
+  } catch (e) {}
+  showTpl();
+})();
+
+/* ---------- Application ---------- */
+let data = null;
+function readApplication(wb){
+  for (const name of wb.SheetNames){
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: '' });
+    let h = -1, c = {};
+    for (let i = 0; i < Math.min(rows.length, 30); i++){
+      const cc = {};
+      rows[i].forEach((v, j) => {
+        const t = clean(v).toLowerCase(); if (!t) return;
+        if (cc.fio === undefined && /^(фио|ф\.\s?и\.\s?о)/.test(t)) cc.fio = j;
+        else if (cc.snils === undefined && /снилс/.test(t)) cc.snils = j;
+        else if (cc.pos === undefined && /(должност|профессия)/.test(t)) cc.pos = j;
+        else if (cc.prog === undefined && /программ/.test(t)) cc.prog = j;
+        else if (cc.check === undefined && /проверк/.test(t)) cc.check = j;
+        else if (cc.start === undefined && /начал/.test(t)) cc.start = j;
+        else if (cc.email === undefined && /(почт|mail)/.test(t)) cc.email = j;
+      });
+      if (cc.fio !== undefined && cc.prog !== undefined){ h = i; c = cc; break; }
+    }
+    if (h < 0) continue;
+    let empName = '', empInn = '';
+    for (let i = 0; i < h; i++){
+      const row = rows[i];
+      row.forEach((v, j) => {
+        const t = clean(v).toLowerCase();
+        const next = () => { for (let k = j + 1; k < row.length; k++) if (clean(row[k])) return clean(row[k]); return ''; };
+        if (/наименование/.test(t) && !empName) empName = next();
+        if (/инн/.test(t) && !empInn) empInn = next();
+      });
+    }
+    const recs = []; let prev = null;
+    for (let i = h + 1; i < rows.length; i++){
+      const row = rows[i];
+      let fio = clean(row[c.fio]);
+      const prog = clean(row[c.prog]);
+      if (!fio && !prog) continue;
+      const rec = {
+        fio: fio || (prev && prev.fio) || '',
+        snils: c.snils !== undefined && row[c.snils] !== '' ? fmtSnils(row[c.snils]) : (prev && !fio ? prev.snils : ''),
+        pos: c.pos !== undefined && clean(row[c.pos]) ? clean(row[c.pos]) : (prev && !fio ? prev.pos : ''),
+        check: c.check !== undefined ? toSerial(row[c.check]) : null,
+        start: c.start !== undefined ? toSerial(row[c.start]) : null,
+        prog, line: i + 1
+      };
+      if (rec.check == null && prev && !fio) rec.check = prev.check;
+      recs.push(rec); prev = rec;
+    }
+    return { recs, empName, empInn, sheet: name };
+  }
+  return null;
+}
+
+function buildRows(){
+  const order = document.querySelector('input[name=rOrder]:checked').value;
+  const result = $('rResultSel').value;
+  const orgName = clean($('rOrgName').value), orgInn = clean($('rOrgInn').value);
+  const start = parseInt($('rProto').value, 10);
+  const warns = [];
+  // group by person, keep order of first appearance
+  const people = [], byKey = new Map();
+  for (const r of data.recs){
+    const key = (r.snils.replace(/\D/g, '') || r.fio.toLowerCase().replace(/ё/g, 'е'));
+    let p = byKey.get(key);
+    if (!p){ p = { fio: r.fio, snils: r.snils, pos: r.pos, items: [], line: r.line }; byKey.set(key, p); people.push(p); }
+    if (!r.prog){ warns.push(`Строка ${r.line}: не выбрана программа, строка пропущена.`); continue; }
+    if (p.items.some(x => x.prog === r.prog)) continue;
+    p.items.push({ prog: r.prog, check: r.check != null ? r.check : r.start, line: r.line, noCheck: r.check == null });
+  }
+  const rows = []; const proto = new Map(); let next = isNaN(start) ? null : start;
+  for (const p of people){
+    const parts = p.fio.split(' ').filter(Boolean).map(capWord);
+    if (parts.length < 2) warns.push(`Строка ${p.line}: в ФИО «${esc(p.fio)}» меньше двух слов, проверьте фамилию и имя.`);
+    if (!p.snils) warns.push(`${esc(p.fio)}: не указан СНИЛС.`);
+    else if (!/^\d{3}-\d{3}-\d{3}[ -]\d{2}$/.test(p.snils)) warns.push(`${esc(p.fio)}: СНИЛС «${esc(p.snils)}» записан не в формате 000-000-000 00.`);
+    const items = p.items.slice();
+    if (order === 'desc') items.sort((a, b) => progNum(b.prog) - progNum(a.prog));
+    for (const it of items){
+      if (it.check == null) warns.push(`${esc(p.fio)}: нет даты проверки знаний (строка ${it.line}).`);
+      else if (it.noCheck) warns.push(`${esc(p.fio)}: нет даты проверки знаний, взята дата начала обучения (строка ${it.line}).`);
+      let num = '';
+      if (next != null){
+        const k = (it.check == null ? 'x' + rows.length : it.check) + '|' + it.prog;
+        if (!proto.has(k)) proto.set(k, next++);
+        num = String(proto.get(k));
+      }
+      rows.push({
+        n: String(rows.length + 1), orgName, orgInn,
+        last: parts[0] || '', first: parts[1] || '', middle: parts.slice(2).join(' '),
+        snils: p.snils, pos: cap(p.pos), prog: it.prog, result, date: it.check, proto: num
+      });
+    }
+  }
+  return { rows, warns, people: people.length };
+}
+
+function applyDefaults(fromTemplate){
+  const info = tpl && tpl.info;
+  if (info){
+    if (fromTemplate || !$('rProto').value) $('rProto').value = info.maxProto ? info.maxProto + 1 : ($('rProto').value || 1);
+    if (fromTemplate || !$('rOrgName').value) $('rOrgName').value = info.orgName || $('rOrgName').value;
+    if (fromTemplate || !$('rOrgInn').value) $('rOrgInn').value = info.orgInn || $('rOrgInn').value;
+  }
+  if (!$('rProto').value) $('rProto').value = '1';
+  if (!$('rOrgName').value) $('rOrgName').value = 'АНО ДПО «Академия подготовки кадров»';
+  if (!$('rOrgInn').value) $('rOrgInn').value = '7806594722';
+  if (data){
+    $('rEmpInn').value = data.empInn || (info && info.empInn) || '';
+    $('rEmpName').value = data.empName || (info && info.empName) || '';
+  }
+}
+
+function render(){
+  const res = buildRows();
+  const heads = ['№','Фамилия','Имя','Отчество','СНИЛС','Должность','Программа','Результат','Дата','Протокол'];
+  let html = '<table><thead><tr>' + heads.map(h => `<th scope="col">${h}</th>`).join('') + '</tr></thead><tbody>';
+  for (const r of res.rows.slice(0, 500)){
+    const pn = progNum(r.prog);
+    html += `<tr><td>${r.n}</td><td>${esc(r.last)}</td><td>${esc(r.first)}</td><td>${esc(r.middle)}</td><td>${esc(r.snils)}</td><td>${esc(r.pos)}</td><td title="${esc(r.prog)}">${esc(pn ? 'Программа ' + pn : r.prog.slice(0, 40))}</td><td>${esc(r.result)}</td><td${r.date == null ? ' class="bad"' : ''}>${r.date == null ? 'нет даты' : fmtDate(r.date)}</td><td${r.proto ? '' : ' class="bad"'}>${r.proto || 'нет'}</td></tr>`;
+  }
+  $('rTable').innerHTML = html + '</tbody></table>';
+  $('rMeta').textContent = `${res.people} ${plural(res.people, 'слушатель', 'слушателя', 'слушателей')}, ${res.rows.length} ${plural(res.rows.length, 'строка', 'строки', 'строк')} реестра.`;
+  const w = res.warns.slice();
+  if (!tpl) w.unshift('Чтобы скачать реестр, загрузите вверху страницы ваш файл реестра .xlsm.');
+  if (isNaN(parseInt($('rProto').value, 10))) w.unshift('Укажите первый номер протокола.');
+  const wb = $('rWarns');
+  if (w.length){ wb.hidden = false; wb.innerHTML = '<h3>Обратите внимание</h3><ul>' + w.map(x => `<li>${x}</li>`).join('') + '</ul>'; }
+  else { wb.hidden = true; wb.innerHTML = ''; }
+  $('rGo').disabled = !tpl || isNaN(parseInt($('rProto').value, 10)) || !res.rows.length;
+  return res;
+}
+
+function setStatus(t, err){ const s = $('rStatus'); s.textContent = t; s.className = 'status' + (err ? ' err' : ''); }
+
+async function handle(file){
+  if (!/\.(xlsx|xls|xlsm)$/i.test(file.name)){ setStatus('Нужен файл Excel (.xlsx). Сейчас выбран «' + file.name + '».', true); return; }
+  if (typeof XLSX === 'undefined'){ setStatus('Не загрузилась библиотека для чтения Excel. Проверьте интернет и обновите страницу.', true); return; }
+  setStatus('Читаю «' + file.name + '»…');
+  try {
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const app = readApplication(wb);
+    if (!app) throw new Error('не нашлись колонки «ФИО» и программа обучения');
+    if (!app.recs.length) throw new Error('под заголовком таблицы нет ни одного слушателя');
+    data = Object.assign(app, { fileName: file.name });
+    applyDefaults(false);
+    render();
+    $('rDone').textContent = ''; $('rDone').className = 'done';
+    $('rResult').classList.add('on');
+    setStatus('Готово: «' + file.name + '» прочитана.');
+    $('rResult').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  } catch (e) {
+    console.error(e);
+    setStatus('Не получилось прочитать заявку: ' + (e && e.message ? e.message : e) + '.', true);
+  }
+}
+
+/* ---------- Writing the .xlsm ---------- */
+const COLS = 'ABCDEFGHIJKLM'.split('');
+function cellXml(ref, s, v){
+  const sa = s != null ? ` s="${s}"` : '';
+  if (v === '' || v == null) return `<c r="${ref}"${sa}/>`;
+  if (typeof v === 'number') return `<c r="${ref}"${sa}><v>${v}</v></c>`;
+  return `<c r="${ref}"${sa} t="inlineStr"><is><t xml:space="preserve">${xesc(v)}</t></is></c>`;
+}
+function setCellInSheet(xml, ref, value){
+  const row = +ref.replace(/\D/g, '');
+  const re = new RegExp(`<c r="${ref}"([^>]*?)(?:/>|>[\\s\\S]*?</c>)`);
+  const m = xml.match(re);
+  if (m){
+    const s = (m[1].match(/ s="(\d+)"/) || [])[1];
+    return xml.replace(re, cellXml(ref, s, value));
+  }
+  const rowRe = new RegExp(`(<row r="${row}"[^>]*>)([\\s\\S]*?)(</row>)`);
+  if (rowRe.test(xml)) return xml.replace(rowRe, (all, a, b, c) => a + b + cellXml(ref, null, value) + c);
+  return xml;
+}
+async function buildXlsm(res){
+  const zip = await JSZip.loadAsync(tpl.buf);
+  const info = tpl.info;
+  let xml = await zip.file(info.regPath).async('string');
+  const total = Math.max(info.lastRow, 4 + res.rows.length);
+  const head = xml.slice(0, xml.indexOf('<sheetData'));
+  const sdOpen = xml.match(/<sheetData[^>]*>/)[0];
+  const sdStart = xml.indexOf(sdOpen) + sdOpen.length, sdEnd = xml.indexOf('</sheetData>');
+  const inner = xml.slice(sdStart, sdEnd);
+  const keep = (inner.match(/<row [^>]*?(?:\/>|>[\s\S]*?<\/row>)/g) || []).filter(r => +(r.match(/ r="(\d+)"/) || [])[1] < 5).join('');
+  let out = '';
+  const ds = info.dataStyles || [], bs = info.blankStyles || ds;
+  res.rows.forEach((r, i) => {
+    const n = 5 + i;
+    const vals = [r.n, '', r.orgName, r.orgInn, r.last, r.first, r.middle, r.snils, r.pos, r.prog, r.result, r.date == null ? '' : r.date, r.proto];
+    out += `<row r="${n}" spans="1:13">` + COLS.map((c, j) => cellXml(c + n, ds[j], vals[j])).join('') + '</row>';
+  });
+  for (let n = 5 + res.rows.length; n <= total; n++){
+    out += `<row r="${n}" spans="1:13">` + COLS.map((c, j) => cellXml(c + n, bs[j], '')).join('') + '</row>';
+  }
+  let tail = xml.slice(sdEnd);
+  let headFixed = head.replace(/<dimension ref="[^"]*"\/>/, `<dimension ref="A1:M${total}"/>`).replace(/topLeftCell="[A-Z]+\d+"/, 'topLeftCell="A5"').replace(/(<selection pane="bottomLeft"[^>]*?)activeCell="[^"]*" sqref="[^"]*"/, '$1activeCell="A5" sqref="A5"');
+  if (total > info.lastRow){
+    const re = new RegExp('([A-Z]\\$?)' + info.lastRow + '(?![0-9])', 'g');
+    tail = tail.replace(/(sqref|ref)="([^"]*)"/g, (m, a, v) => `${a}="${v.replace(re, '$1' + total)}"`);
+    let wbx = await zip.file('xl/workbook.xml').async('string');
+    wbx = wbx.replace(/(<definedName[^>]*>)([^<]*)(<\/definedName>)/g, (m, a, v, c) => a + v.replace(new RegExp('(\\$[A-Z]+\\$)' + info.lastRow + '(?![0-9])', 'g'), '$1' + total) + c);
+    zip.file('xl/workbook.xml', wbx);
+  }
+  zip.file(info.regPath, headFixed + sdOpen + keep + out + tail);
+  // employer settings
+  if (info.setPath && zip.file(info.setPath)){
+    let sx = await zip.file(info.setPath).async('string');
+    const inn = clean($('rEmpInn').value), name = clean($('rEmpName').value);
+    if (inn) sx = setCellInSheet(sx, 'B1', inn);
+    if (name) sx = setCellInSheet(sx, 'B2', name);
+    zip.file(info.setPath, sx);
+  }
+  // drop cached calculation chain if any, Excel rebuilds it
+  if (zip.file('xl/calcChain.xml')){
+    zip.remove('xl/calcChain.xml');
+    let ct = await zip.file('[Content_Types].xml').async('string');
+    ct = ct.replace(/<Override[^>]*calcChain[^>]*\/>/, ''); zip.file('[Content_Types].xml', ct);
+    let rl = await zip.file('xl/_rels/workbook.xml.rels').async('string');
+    rl = rl.replace(/<Relationship[^>]*calcChain[^>]*\/>/, ''); zip.file('xl/_rels/workbook.xml.rels', rl);
+  }
+  const isXlsm = !!zip.file('xl/vbaProject.bin');
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 },
+    mimeType: isXlsm ? 'application/vnd.ms-excel.sheet.macroEnabled.12' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  return { blob, ext: isXlsm ? 'xlsm' : 'xlsx' };
+}
+
+const drop = $('rDrop'), fileIn = $('rFile');
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) handle(f); });
+fileIn.addEventListener('change', () => { if (fileIn.files[0]) handle(fileIn.files[0]); fileIn.value = ''; });
+['rProto','rOrgName','rOrgInn','rEmpInn','rEmpName'].forEach(id => $(id).addEventListener('input', () => { if (data) render(); }));
+['rResultSel'].forEach(id => $(id).addEventListener('change', () => { if (data) render(); }));
+document.querySelectorAll('input[name=rOrder]').forEach(r => r.addEventListener('change', () => { if (data) render(); }));
+$('rAgain').onclick = () => fileIn.click();
+
+$('rGo').onclick = async () => {
+  if (!data || !tpl) return;
+  const res = render();
+  const go = $('rGo'), done = $('rDone');
+  go.disabled = true; done.className = 'done'; done.textContent = 'Собираю реестр…';
+  try {
+    const { blob, ext } = await buildXlsm(res);
+    const dates = res.rows.map(r => r.date).filter(d => d != null);
+    const month = dates.length ? MONTHS[serialToDate(Math.max(...dates)).getUTCMonth()] : 'новый';
+    const filename = `Реестр_${month}.${ext}`;
+    const dl = await window.__dlP;
+    let saved = false;
+    if (dl){
+      try { await dl.save({ filename, data: blob }); saved = true; }
+      catch (e) {
+        if (e && e.code === 'declined'){ done.textContent = 'Сохранение отменено.'; return; }
+        if (e && e.code === 'rate_limited'){ done.textContent = 'Окно сохранения уже открыто.'; return; }
+      }
+    }
+    if (!saved){
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    }
+    done.className = 'done ok';
+    done.textContent = `Файл ${filename} готов: ${res.rows.length} ${plural(res.rows.length, 'строка', 'строки', 'строк')}. Откройте его в Excel и включите макросы, чтобы сформировать XML.`;
+  } catch (e) {
+    console.error(e);
+    done.className = 'done err'; done.textContent = 'Не удалось собрать реестр: ' + (e && e.message ? e.message : e);
+  } finally { go.disabled = false; }
+};
+
+window.__reestr = { readApplication, setTemplate, buildXlsm, render, applyDefaults, setData: d => { data = d; } };
 })();
 </script>
 </body>
