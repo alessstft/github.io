@@ -3,11 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>PowerPoint в SCORM</title>
+<title>Инструменты для Moodle</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>window.__dlP = (window.claude && typeof window.claude.use === 'function') ? window.claude.use('downloads').catch(() => null) : Promise.resolve(null);</script>
 <style>
 :root{
   --bg:#E9EDF4; --surface:#FFFFFF; --sunken:#F3F5F9; --ink:#17203A; --muted:#566079;
@@ -99,6 +101,49 @@ aside.panel{position:sticky;top:calc(16px + env(safe-area-inset-top,0px));backgr
 .how h2{font:500 18px/1.3 Unbounded,"Golos Text",sans-serif;color:var(--ink);margin:0 0 10px}
 .how p{margin:0 0 10px}
 
+
+/* Home & routing */
+[hidden]{display:none !important}
+.back{display:inline-block;margin-bottom:28px;color:var(--muted);text-decoration:none;font-size:15px}
+.back:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:28px;margin-top:44px;max-width:900px}
+.tool{position:relative;display:block;text-decoration:none;color:var(--ink)}
+.tool::before{content:"";position:absolute;inset:0;border-radius:14px;background:var(--accent);transform:translate(8px,8px);transition:transform .15s}
+.tool:nth-child(2)::before{background:var(--tape)}
+.tool .card{position:relative;background:var(--surface);border:2px solid var(--ink);border-radius:14px;padding:28px 26px 26px;min-height:220px;display:flex;flex-direction:column;gap:10px;transition:transform .15s}
+.tool:hover .card,.tool:focus-visible .card{transform:translate(-3px,-3px)}
+.tool:hover::before,.tool:focus-visible::before{transform:translate(11px,11px)}
+.tool:focus-visible{outline:none}
+.tool:focus-visible .card{outline:3px solid var(--accent);outline-offset:4px}
+.tool .fmt{font:600 13px/1 "Golos Text",sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tool h2{font:500 23px/1.2 Unbounded,"Golos Text",sans-serif;margin:0}
+.tool p{margin:0;color:var(--muted)}
+.tool .open{margin-top:auto;font-weight:600;color:var(--accent)}
+@media (prefers-reduced-motion: reduce){.tool::before,.tool .card{transition:none}}
+
+/* Moodle tool */
+#mResult{display:none;margin-top:48px;grid-template-columns:minmax(0,1fr) 360px;gap:32px;align-items:start}
+#mResult.on{display:grid}
+@media (max-width:880px){#mResult.on{grid-template-columns:1fr}}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.tbl-wrap table{border-collapse:collapse;font-size:14px;min-width:100%}
+.tbl-wrap th,.tbl-wrap td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.tbl-wrap th{background:var(--sunken);font-weight:600;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:13px}
+.tbl-wrap tr:last-child td{border-bottom:0}
+.tbl-wrap td.bad{color:var(--err);font-weight:600}
+.map-row{margin:0 0 14px}
+.map-row .prog{font-size:14px;line-height:1.4;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.map-row .cnt{color:var(--muted);font-size:13px}
+.map-row input{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--sunken)}
+.map-row input.need{border-color:var(--err);box-shadow:0 0 0 1px var(--err)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row2 input{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--sunken)}
+.row2 label{font-size:14px;color:var(--muted);display:block;margin-bottom:4px}
+.panel hr{border:0;border-top:1px solid var(--line);margin:4px 0 20px}
+.rules{margin:0;padding-left:20px}
+.rules li{margin:4px 0}
+.rules code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:0 4px;color:var(--ink)}
+
 /* Lightbox */
 .lb{position:fixed;inset:0;z-index:50;background:rgba(10,14,26,.86);display:none;flex-direction:column;
   padding:calc(12px + env(safe-area-inset-top,0px)) 12px calc(12px + env(safe-area-inset-bottom,0px))}
@@ -126,7 +171,29 @@ aside.panel{position:sticky;top:calc(16px + env(safe-area-inset-top,0px));backgr
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap view" id="view-home">
+  <header>
+    <h1>Инструменты для Moodle</h1>
+    <p>Готовим материалы и списки слушателей к загрузке в систему дистанционного обучения. Файлы обрабатываются прямо в браузере и никуда не отправляются.</p>
+  </header>
+  <nav class="tools" aria-label="Инструменты">
+    <a class="tool" href="#scorm"><div class="card">
+      <span class="fmt">PPTX в ZIP</span>
+      <h2>Презентация в SCORM</h2>
+      <p>Превращает презентацию PowerPoint в SCORM-пакет для курса.</p>
+      <span class="open">Открыть конвертер</span>
+    </div></a>
+    <a class="tool" href="#moodle"><div class="card">
+      <span class="fmt">XLSX в CSV</span>
+      <h2>Реестр в список слушателей</h2>
+      <p>Делает из Excel-реестра обучения CSV для массовой загрузки пользователей и записи на курсы.</p>
+      <span class="open">Открыть преобразование</span>
+    </div></a>
+  </nav>
+</div>
+
+<div class="wrap view" id="view-scorm" hidden>
+  <a class="back" href="#">← Все инструменты</a>
   <header>
     <h1>PowerPoint в SCORM-пакет</h1>
     <p>Загрузите презентацию .pptx и получите zip-архив, который можно загрузить в Moodle или любую другую LMS с поддержкой SCORM. Файл обрабатывается прямо в браузере и никуда не отправляется.</p>
@@ -180,6 +247,71 @@ aside.panel{position:sticky;top:calc(16px + env(safe-area-inset-top,0px));backgr
       <p class="done" id="done" role="status" aria-live="polite"></p>
       <button class="again" id="again" type="button">Загрузить другую презентацию</button>
     </aside>
+  </section>
+
+  <section class="how">
+    <h2>Что переносится</h2>
+    <p>Текст с форматированием, фигуры, линии, картинки, таблицы, фоны и оформление из образца слайдов, ссылки и видео в формате MP4. Каждый слайд собирается в HTML, поэтому текст остаётся чётким на любом экране.</p>
+    <p>Анимации и переходы, диаграммы (charts), SmartArt, формулы и картинки EMF/WMF не переносятся: вместо них будет заглушка, а конвертер покажет, на каких слайдах это случилось. Если какой-то слайд выглядит не так, проще всего в PowerPoint сохранить проблемный объект как картинку и вставить её обратно.</p>
+    <p>Внутри пакета есть плеер с кнопками, стрелками на клавиатуре и полноэкранным режимом. Он запоминает, на каком слайде остановился слушатель, и передаёт в LMS статус прохождения.</p>
+  </section>
+</div>
+
+<div class="wrap view" id="view-moodle" hidden>
+  <a class="back" href="#">← Все инструменты</a>
+  <header>
+    <h1>Реестр в CSV для Moodle</h1>
+    <p>Загрузите Excel-реестр обучения (.xlsx, .xlsm, .xls или .csv). На выходе получится файл для раздела «Администрирование → Пользователи → Загрузить пользователей»: каждый слушатель одной строкой, со всеми его курсами.</p>
+  </header>
+
+  <div class="drop" id="mDrop">
+    <input type="file" id="mFile" accept=".xlsx,.xlsm,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12,application/vnd.ms-excel,text/csv">
+    <label for="mFile">
+      <span class="big">Перетащите сюда реестр</span>
+      <span class="small">Нужны колонки «Фамилия», «Имя», «Отчество» и «Название программы»</span>
+      <span class="pick">Выбрать файл</span>
+    </label>
+  </div>
+  <p class="status" id="mStatus" role="status" aria-live="polite"></p>
+
+  <section id="mResult" aria-label="Результат">
+    <div>
+      <div class="step-h"><span class="n">2</span><h2>Проверьте список</h2></div>
+      <p class="meta" id="mMeta"></p>
+      <div class="tbl-wrap" id="mTable"></div>
+      <div class="warns" id="mWarns" hidden></div>
+    </div>
+    <aside class="panel">
+      <div class="step-h"><span class="n">3</span><h2>Курсы и настройки</h2></div>
+      <div class="field">
+        <span class="lbl">Краткие названия курсов в Moodle</span>
+        <div class="hint" style="margin:-4px 0 12px">Впишите короткое имя курса точно так, как оно указано в Moodle. Программа слева, курс в поле под ней. Сопоставления запоминаются в этом браузере.</div>
+        <div id="mMap"></div>
+      </div>
+      <hr>
+      <div class="field row2">
+        <div><label for="mRole">Роль</label><input type="text" id="mRole" value="student"></div>
+        <div><label for="mPass">Окончание пароля</label><input type="text" id="mPass" value="12345"></div>
+      </div>
+      <div class="field">
+        <div class="row2"><div style="grid-column:1/-1"><label for="mDomain">Домен почты, если в реестре её нет</label><input type="text" id="mDomain" value="mail.ru"></div></div>
+      </div>
+      <button class="go" id="mGo" type="button">Скачать CSV</button>
+      <p class="done" id="mDone" role="status" aria-live="polite"></p>
+      <button class="again" id="mAgain" type="button">Загрузить другой реестр</button>
+    </aside>
+  </section>
+
+  <section class="how">
+    <h2>Как заполняются колонки</h2>
+    <ul class="rules">
+      <li><code>username</code>: фамилия и имя латиницей через точку, строчными буквами, например <code>ivanova.galina</code>. Если логины совпадают, к следующему добавляется цифра: <code>ivanova.galina2</code>.</li>
+      <li><code>password</code>: пароль из реестра, а если его нет, то логин плюс окончание, например <code>ivanova.galina12345</code>.</li>
+      <li><code>firstname</code>: имя и отчество через пробел. <code>lastname</code>: фамилия по-русски.</li>
+      <li><code>email</code>: почта из реестра, а если её нет, то <code>логин@mail.ru</code>.</li>
+      <li><code>course1</code>, <code>role1</code>, <code>course2</code>, <code>role2</code> и дальше: курсы слушателя в порядке строк реестра, с ролью <code>student</code>.</li>
+    </ul>
+    <p style="margin-top:12px">Файл сохраняется в кодировке UTF-8 с разделителем «;». В Moodle при загрузке выберите разделитель «;» и кодировку UTF-8.</p>
   </section>
 </div>
 
@@ -1307,6 +1439,7 @@ ${slides}
 </div>
 <script>window.COURSE=${cfg};<\/script>
 <script>${document.getElementById('tplPlayerJs').textContent.trim()}<\/script>
+
 </body>
 </html>
 `;
@@ -1346,7 +1479,7 @@ function slug(s){
 const $ = id => document.getElementById(id);
 const drop = $('drop'), fileIn = $('file'), statusEl = $('status');
 let deck = null, previewUrls = {}, previewSlides = [], lbIndex = 0;
-const downloadsP = (window.claude && typeof window.claude.use === 'function') ? window.claude.use('downloads').catch(() => null) : Promise.resolve(null);
+const downloadsP = window.__dlP;
 
 function setStatus(t, err){ statusEl.textContent = t; statusEl.className = 'status' + (err ? ' err' : ''); }
 ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
@@ -1487,6 +1620,258 @@ $('go').onclick = async () => {
 };
 $('again').onclick = () => fileIn.click();
 
+})();
+</script>
+<script>
+/* ===== Router ===== */
+(function(){
+  const views = { '': 'view-home', scorm: 'view-scorm', moodle: 'view-moodle' };
+  function route(){
+    const key = location.hash.replace(/^#/, '');
+    const id = views[key] || 'view-home';
+    document.querySelectorAll('.view').forEach(v => { v.hidden = v.id !== id; });
+    document.title = id === 'view-scorm' ? 'Презентация в SCORM' : id === 'view-moodle' ? 'Реестр в CSV для Moodle' : 'Инструменты для Moodle';
+    window.scrollTo(0, 0);
+    window.dispatchEvent(new Event('resize'));
+  }
+  window.addEventListener('hashchange', route);
+  route();
+})();
+
+/* ===== Registry → Moodle CSV ===== */
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const TRM = {а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'e',ж:'zh',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'kh',ц:'ts',ч:'ch',ш:'sh',щ:'shch',ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya',і:'i',ї:'yi',є:'ye',ў:'u',ґ:'g'};
+const translit = s => String(s).toLowerCase().split('').map(c => TRM[c] !== undefined ? TRM[c] : c).join('');
+const clean = v => String(v == null ? '' : v).replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const DEFAULT_BY_NUM = { '1': 'ОПП', '4': 'Б' };
+const LS_KEY = 'moodleCourseMap';
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem(LS_KEY) || '{}') || {}; } catch (e) { saved = {}; }
+let data = null, mapping = {};
+
+function plural(n, one, few, many){ const a = n % 10, b = n % 100; if (a === 1 && b !== 11) return one; if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return few; return many; }
+
+function findCols(row){
+  const c = {};
+  row.forEach((v, i) => {
+    const t = clean(v).toLowerCase();
+    if (!t) return;
+    if (c.last === undefined && /^фамилия/.test(t)) c.last = i;
+    else if (c.first === undefined && /^имя(\s|$)/.test(t)) c.first = i;
+    else if (c.middle === undefined && /^отчество/.test(t)) c.middle = i;
+    else if (c.fio === undefined && /^(фио|ф\.\s?и\.\s?о)/.test(t)) c.fio = i;
+    else if (c.prog === undefined && /(программ|курс)/.test(t)) c.prog = i;
+    else if (c.snils === undefined && /снилс/.test(t)) c.snils = i;
+    else if (c.email === undefined && /(e-?mail|почт)/.test(t)) c.email = i;
+    else if (c.pass === undefined && /(пароль|password)/.test(t)) c.pass = i;
+  });
+  return c;
+}
+
+function readWorkbook(wb){
+  let best = null;
+  for (const name of wb.SheetNames){
+    if (/^_/.test(name)) continue;
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: false, defval: '' });
+    for (let h = 0; h < Math.min(rows.length, 30); h++){
+      const c = findCols(rows[h]);
+      if (!((c.last !== undefined && c.first !== undefined) || c.fio !== undefined)) continue;
+      const recs = [];
+      for (let r = h + 1; r < rows.length; r++){
+        const row = rows[r];
+        let last, first, middle;
+        if (c.last !== undefined){ last = clean(row[c.last]); first = clean(row[c.first]); middle = c.middle !== undefined ? clean(row[c.middle]) : ''; }
+        else { const parts = clean(row[c.fio]).split(' '); last = parts[0] || ''; first = parts[1] || ''; middle = parts.slice(2).join(' '); }
+        if (!last && !first) continue;
+        if (/^\d+$/.test(last) || /^\d+$/.test(first)) continue; // column-numbers row
+        recs.push({
+          last, first, middle,
+          prog: c.prog !== undefined ? clean(row[c.prog]) : '',
+          snils: c.snils !== undefined ? clean(row[c.snils]).replace(/\D/g, '') : '',
+          email: c.email !== undefined ? clean(row[c.email]) : '',
+          pass: c.pass !== undefined ? clean(row[c.pass]) : '',
+          line: r + 1
+        });
+      }
+      if (!best || recs.length > best.recs.length) best = { recs, sheet: name, cols: c };
+      break;
+    }
+  }
+  return best;
+}
+
+function group(recs){
+  const people = [], byKey = new Map(), programs = [];
+  for (const r of recs){
+    const key = r.snils.length >= 9 ? 's' + r.snils : 'n' + (r.last + '|' + r.first + '|' + r.middle).toLowerCase().replace(/ё/g, 'е');
+    let p = byKey.get(key);
+    if (!p){ p = { last: r.last, first: r.first, middle: r.middle, email: '', pass: '', programs: [], line: r.line }; byKey.set(key, p); people.push(p); }
+    if (r.email && !p.email) p.email = r.email;
+    if (r.pass && !p.pass) p.pass = r.pass;
+    if (r.prog && !p.programs.includes(r.prog)) p.programs.push(r.prog);
+    if (r.prog && !programs.includes(r.prog)) programs.push(r.prog);
+  }
+  return { people, programs };
+}
+
+function defaultFor(prog){
+  if (saved[prog]) return saved[prog];
+  const m = prog.match(/^\s*(\d+)\s*[.)]/);
+  return m && DEFAULT_BY_NUM[m[1]] ? DEFAULT_BY_NUM[m[1]] : '';
+}
+
+function csvCell(v){ v = String(v == null ? '' : v); return /[;"\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+
+function build(){
+  const suffix = $('mPass').value;
+  const domain = $('mDomain').value.trim().replace(/^@+/, '') || 'mail.ru';
+  const role = $('mRole').value.trim() || 'student';
+  const used = new Set(), warns = [], rows = [];
+  let maxC = 0, unmapped = new Set();
+  for (const p of data.people){
+    const part = s => translit(s).replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    const base = [part(p.last), part(p.first)].filter(Boolean).join('.') || 'user';
+    let u = base, n = 2;
+    while (used.has(u)) u = base + (n++);
+    if (u !== base) warns.push(`У слушателя ${p.last} ${p.first} ${p.middle} логин совпал с другим, ему выдан <b>${esc(u)}</b>.`);
+    used.add(u);
+    if (!p.first) warns.push(`У слушателя ${esc(p.last)} нет имени (строка ${p.line}).`);
+    if (!p.programs.length) warns.push(`У слушателя ${esc(p.last)} ${esc(p.first)} не указана программа, он будет загружен без записи на курс.`);
+    const courses = p.programs.map(pr => { const c = clean(mapping[pr]); if (!c) unmapped.add(pr); return c; });
+    maxC = Math.max(maxC, courses.length);
+    rows.push({ username: u, password: p.pass || u + suffix, firstname: clean(p.first + ' ' + p.middle), lastname: p.last, email: p.email || u + '@' + domain, courses });
+  }
+  const header = ['username','password','firstname','lastname','email'];
+  for (let i = 1; i <= maxC; i++) header.push('course' + i, 'role' + i);
+  const table = rows.map(r => {
+    const out = [r.username, r.password, r.firstname, r.lastname, r.email];
+    for (let i = 0; i < maxC; i++){ const c = r.courses[i]; out.push(c === undefined ? '' : c, c === undefined ? '' : role); }
+    return out;
+  });
+  const csv = [header, ...table].map(r => r.map(csvCell).join(';')).join('\r\n') + '\r\n';
+  return { header, table, csv, warns, unmapped, rows };
+}
+
+function renderMap(){
+  const box = $('mMap'); box.innerHTML = '';
+  data.programs.forEach((pr, i) => {
+    const cnt = data.people.filter(p => p.programs.includes(pr)).length;
+    const d = document.createElement('div'); d.className = 'map-row';
+    d.innerHTML = `<label class="prog" for="mMap${i}" title="${esc(pr)}">${esc(pr)}</label><input type="text" id="mMap${i}" placeholder="Например, ОПП" autocomplete="off"><div class="cnt">${cnt} ${plural(cnt, 'слушатель', 'слушателя', 'слушателей')}</div>`;
+    const inp = d.querySelector('input');
+    inp.value = mapping[pr] || '';
+    inp.addEventListener('input', () => {
+      mapping[pr] = inp.value;
+      if (clean(inp.value)) saved[pr] = clean(inp.value); else delete saved[pr];
+      try { localStorage.setItem(LS_KEY, JSON.stringify(saved)); } catch (e) {}
+      render();
+    });
+    box.appendChild(d);
+  });
+  if (!data.programs.length) box.innerHTML = '<p class="hint">В реестре не нашлась колонка с программами, слушатели будут загружены без записи на курсы.</p>';
+}
+
+function render(){
+  const res = build();
+  document.querySelectorAll('#mMap input').forEach((inp, i) => inp.classList.toggle('need', !clean(inp.value)));
+  const maxRows = 300;
+  const courseIdx = new Set(res.header.map((h, i) => /^course\d/.test(h) ? i : -1).filter(i => i >= 0));
+  let html = '<table><thead><tr>' + res.header.map(h => `<th scope="col">${esc(h)}</th>`).join('') + '</tr></thead><tbody>';
+  res.table.slice(0, maxRows).forEach((r, ri) => {
+    html += '<tr>' + r.map((v, ci) => {
+      const bad = courseIdx.has(ci) && v === '' && res.rows[ri].courses.length > [...courseIdx].indexOf(ci);
+      return `<td${bad ? ' class="bad"' : ''}>${bad ? 'нет курса' : esc(v)}</td>`;
+    }).join('') + '</tr>';
+  });
+  html += '</tbody></table>';
+  $('mTable').innerHTML = html;
+  const n = data.people.length, rc = data.recCount;
+  $('mMeta').textContent = `${n} ${plural(n, 'слушатель', 'слушателя', 'слушателей')} из ${rc} ${plural(rc, 'строки', 'строк', 'строк')} реестра, лист «${data.sheet}».` + (res.table.length > maxRows ? ` Показаны первые ${maxRows}.` : '');
+  const w = res.warns.slice();
+  if (res.unmapped.size) w.unshift(`Не указан курс в Moodle для ${res.unmapped.size} ${plural(res.unmapped.size, 'программы', 'программ', 'программ')}. Заполните поля, отмеченные красным, справа.`);
+  const wb = $('mWarns');
+  if (w.length){ wb.hidden = false; wb.innerHTML = '<h3>Обратите внимание</h3><ul>' + w.map(x => `<li>${x}</li>`).join('') + '</ul>'; }
+  else { wb.hidden = true; wb.innerHTML = ''; }
+  $('mGo').disabled = res.unmapped.size > 0;
+  $('mGo').title = res.unmapped.size ? 'Сначала укажите курсы для всех программ' : '';
+  return res;
+}
+
+function setStatus(t, err){ const s = $('mStatus'); s.textContent = t; s.className = 'status' + (err ? ' err' : ''); }
+
+async function handle(file){
+  if (!/\.(xlsx|xlsm|xls|csv)$/i.test(file.name)){ setStatus('Нужен файл Excel (.xlsx, .xlsm, .xls) или .csv. Сейчас выбран «' + file.name + '».', true); return; }
+  if (typeof XLSX === 'undefined'){ setStatus('Не загрузилась библиотека для чтения Excel. Проверьте интернет и обновите страницу.', true); return; }
+  setStatus('Читаю «' + file.name + '»…');
+  try {
+    const buf = await file.arrayBuffer();
+    let wb;
+    if (/\.csv$/i.test(file.name)){
+      let text = new TextDecoder('utf-8').decode(buf);
+      if (text.includes('\ufffd')) text = new TextDecoder('windows-1251').decode(buf);
+      wb = XLSX.read(text, { type: 'string', FS: text.split('\n')[0].includes(';') ? ';' : ',' });
+    } else wb = XLSX.read(buf, { type: 'array' });
+    const found = readWorkbook(wb);
+    if (!found) throw new Error('не нашлись колонки «Фамилия» и «Имя» (или «ФИО»)');
+    if (!found.recs.length) throw new Error('под заголовком таблицы нет ни одной строки со слушателями');
+    const g = group(found.recs);
+    data = { people: g.people, programs: g.programs, sheet: found.sheet, recCount: found.recs.length, fileName: file.name };
+    mapping = {}; g.programs.forEach(pr => { mapping[pr] = defaultFor(pr); });
+    renderMap(); render();
+    $('mDone').textContent = ''; $('mDone').className = 'done';
+    $('mResult').classList.add('on');
+    setStatus('Готово: «' + file.name + '» прочитан.');
+    $('mResult').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  } catch (e) {
+    console.error(e);
+    setStatus('Не получилось прочитать реестр: ' + (e && e.message ? e.message : e) + '.', true);
+  }
+}
+
+const drop = $('mDrop'), fileIn = $('mFile');
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) handle(f); });
+fileIn.addEventListener('change', () => { if (fileIn.files[0]) handle(fileIn.files[0]); fileIn.value = ''; });
+['mRole','mPass','mDomain'].forEach(id => $(id).addEventListener('input', () => { if (data) render(); }));
+$('mAgain').onclick = () => fileIn.click();
+
+$('mGo').onclick = async () => {
+  if (!data) return;
+  const res = render();
+  if (res.unmapped.size) return;
+  const done = $('mDone'), go = $('mGo');
+  const base = translit(data.fileName.replace(/\.[^.]+$/, '')).replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'users';
+  const filename = base + '-moodle.csv';
+  const blob = new Blob([res.csv], { type: 'text/csv' });
+  go.disabled = true; done.className = 'done'; done.textContent = '';
+  try {
+    const dl = await window.__dlP;
+    let saved = false;
+    if (dl){
+      try { await dl.save({ filename, data: blob }); saved = true; }
+      catch (e) {
+        if (e && e.code === 'declined'){ done.textContent = 'Сохранение отменено.'; return; }
+        if (e && e.code === 'rate_limited'){ done.textContent = 'Окно сохранения уже открыто.'; return; }
+      }
+    }
+    if (!saved){
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    }
+    done.className = 'done ok';
+    done.textContent = `Файл ${filename} готов: ${res.rows.length} ${plural(res.rows.length, 'слушатель', 'слушателя', 'слушателей')}.`;
+  } catch (e) {
+    done.className = 'done err'; done.textContent = 'Не удалось сохранить файл: ' + (e && e.message ? e.message : e);
+  } finally { go.disabled = false; }
+};
+
+window.__registry = { readWorkbook, group, build: () => build(), render: () => { renderMap(); return render(); }, setData: (d, m) => { data = d; mapping = m; } };
 })();
 </script>
 </body>
