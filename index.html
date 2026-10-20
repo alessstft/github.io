@@ -427,7 +427,7 @@ aside.panel{position:sticky;top:calc(16px + env(safe-area-inset-top,0px));backgr
       <div class="field">
         <label class="lbl" for="pPlace">Место работы в таблице</label>
         <input type="text" id="pPlace" class="full">
-        <div class="hint">Короткое название работодателя. Оно же попадает в имя файла.</div>
+        <div class="hint" id="pPlaceHint">Берётся из листа «Настройки», строка «Наименование работодателя», и сокращается автоматически. Это же название попадает в имя файла.</div>
       </div>
       <div class="field" id="pRegField">
         <label class="lbl" for="pReg">Регистрационный номер первой строки реестра</label>
@@ -2441,6 +2441,9 @@ const sDate = n => new Date(Date.UTC(1899, 11, 30) + n * 86400000);
 const fmtDate = n => { const d = sDate(n); return String(d.getUTCDate()).padStart(2,'0') + '.' + String(d.getUTCMonth()+1).padStart(2,'0') + '.' + d.getUTCFullYear(); };
 
 const ABBR = [
+  [/ФЕДЕРАЛЬНОЕ\s+ГОСУДАРСТВЕННОЕ\s+БЮДЖЕТНОЕ\s+УЧРЕЖДЕНИЕ\s+ЗДРАВООХРАНЕНИЯ/i, 'ФГБУЗ'],
+  [/ФЕДЕРАЛЬНОЕ\s+ГОСУДАРСТВЕННОЕ\s+БЮДЖЕТНОЕ\s+УЧРЕЖДЕНИЕ/i, 'ФГБУ'],
+  [/ФЕДЕРАЛЬНОЕ\s+ГОСУДАРСТВЕННОЕ\s+КАЗ[ЕЁ]ННОЕ\s+УЧРЕЖДЕНИЕ/i, 'ФГКУ'],
   [/САНКТ-ПЕТЕРБУРГСКОЕ\s+ГОСУДАРСТВЕННОЕ\s+БЮДЖЕТНОЕ\s+УЧРЕЖДЕНИЕ\s+ЗДРАВООХРАНЕНИЯ/i, 'СПб ГБУЗ'],
   [/САНКТ-ПЕТЕРБУРГСКОЕ\s+ГОСУДАРСТВЕННОЕ\s+КАЗ[ЕЁ]ННОЕ\s+УЧРЕЖДЕНИЕ\s+ЗДРАВООХРАНЕНИЯ/i, 'СПб ГКУЗ'],
   [/САНКТ-ПЕТЕРБУРГСКОЕ\s+ГОСУДАРСТВЕННОЕ\s+АВТОНОМНОЕ\s+УЧРЕЖДЕНИЕ\s+ЗДРАВООХРАНЕНИЯ/i, 'СПб ГАУЗ'],
@@ -2458,14 +2461,30 @@ const ABBR = [
 function shortPlace(full){
   let s = clean(full).replace(/[«»“”„]/g, '"');
   if (!s) return '';
-  for (const [re, ab] of ABBR) if (re.test(s)){ s = s.replace(re, ab); break; }
-  s = s.replace(/"([^"]+)"/g, (m, inner) => {
-    if (inner === inner.toUpperCase()){
-      const low = inner.toLowerCase();
-      inner = low.charAt(0).toUpperCase() + low.slice(1);
+  let matched = false;
+  for (const [re, ab] of ABBR) if (re.test(s)){ s = s.replace(re, ab); matched = true; break; }
+  if (!matched){
+    // generic: abbreviate an all-caps legal form before the quoted name
+    const q = s.indexOf('"');
+    const prefix = q > 0 ? s.slice(0, q).trim() : '';
+    const words = prefix.split(/\s+/).filter(Boolean);
+    if (words.length >= 2 && prefix === prefix.toUpperCase()){
+      const ab = words.filter(w => !/^(С|И|ПО|НА|В)$/.test(w)).map(w =>
+        /^САНКТ-ПЕТЕРБУРГ/.test(w) ? 'СПб ' : /^МОСКОВСК/.test(w) ? 'М' : /^ЛЕНИНГРАДСК/.test(w) ? 'ЛО ' : w.charAt(0)).join('').replace(/\s+$/, '');
+      s = ab + ' ' + s.slice(q);
     }
-    return '"' + inner.replace(/№\s*/g, '№ ') + '"';
-  });
+  }
+  // sentence case for ALL-CAPS text, keeping short abbreviations like НМИЦ or ДГП
+  const sentence = t => {
+    if (t !== t.toUpperCase() || !/[А-ЯЁA-Z]/.test(t)) return t;
+    const out = t.split(' ').map(w => w.replace(/[^А-ЯЁA-Z]/g, '').length > 4 ? w.toLowerCase() : w).join(' ');
+    return out.charAt(0).toUpperCase() + out.slice(1);
+  };
+  s = s.replace(/"([^"]+)"/g, (m, inner) => '"' + sentence(inner).replace(/№\s*/g, '№ ') + '"');
+  // descriptor between the abbreviation and the quoted name, e.g. "ГБДОУ ДЕТСКИЙ САД № 5"
+  s = s.replace(/^((?:СПб |ЛО )?(?:ФГБУЗ|ФГБУ|ФГКУ|ГБУЗ|ГКУЗ|ГАУЗ|ГБДОУ|ГБОУ|ГБУ|ГКУ|ООО|ПАО|АО|ИП))\s+([^"]+?)\s*(?="|$)/, (m, ab, mid) => {
+    return ab + ' ' + (mid === mid.toUpperCase() ? mid.toLowerCase() : mid) + ' ';
+  }).replace(/\s+"/, ' "').trim();
   return s;
 }
 const fileSafe = s => s.replace(/["«»]/g, '').replace(/[^0-9A-Za-zА-Яа-яЁё]/g, '_');
@@ -2583,7 +2602,7 @@ function render(){
   $('pMeta').textContent = `${n} ${plural(n, 'протокол', 'протокола', 'протоколов')} из ${data.recs.length} ${plural(data.recs.length, 'строки', 'строк', 'строк')} реестра.`;
   const w = g.warns.slice();
   if (missing) w.unshift('Укажите код и количество часов для всех программ, поля отмечены красным справа.');
-  if (!place) w.unshift('Укажите место работы.');
+  if (!place) w.unshift(data.employer ? 'Укажите место работы.' : 'В реестре на листе «Настройки» не заполнено «Наименование работодателя». Впишите место работы вручную или заполните это поле в реестре.');
   const wb = $('pWarns');
   if (w.length){ wb.hidden = false; wb.innerHTML = '<h3>Обратите внимание</h3><ul>' + w.map(x => `<li>${x}</li>`).join('') + '</ul>'; }
   else { wb.hidden = true; wb.innerHTML = ''; }
@@ -2652,7 +2671,7 @@ async function handle(file){
     if (!reg) throw new Error('не нашлись колонки «Фамилия», «Имя» и «Номер протокола»');
     if (!reg.recs.length) throw new Error('в реестре нет ни одной строки со слушателями');
     data = Object.assign(reg, { fileName: file.name });
-    $('pPlace').value = places[reg.employer] || shortPlace(reg.employer) || $('pPlace').value;
+    $('pPlace').value = reg.employer ? (places[reg.employer] || shortPlace(reg.employer)) : '';
     $('pRegField').hidden = reg.hasReg;
     renderProgs(); render();
     $('pDone').textContent = ''; $('pDone').className = 'done';
