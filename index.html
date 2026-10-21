@@ -1853,7 +1853,10 @@ function group(recs){
 function defaultFor(prog){
   if (saved[prog]) return saved[prog];
   const m = prog.match(/^\s*(\d+)\s*[.)]/);
-  return m && DEFAULT_BY_NUM[m[1]] ? DEFAULT_BY_NUM[m[1]] : '';
+  if (m && DEFAULT_BY_NUM[m[1]]) return DEFAULT_BY_NUM[m[1]];
+  if (/первой помощи/i.test(prog)) return 'ОПП';
+  if (/безопасн\S* метод/i.test(prog)) return 'Б';
+  return '';
 }
 
 function csvCell(v){ v = String(v == null ? '' : v); return /[;"\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
@@ -2569,8 +2572,9 @@ function groups(){
   }
   return { list, warns: [...new Set(warns)] };
 }
-const codeFor = p => clean(codes[p] !== undefined ? codes[p] : (DEF_CODE[progNum(p)] || ''));
-const hoursFor = p => clean(hours[p] !== undefined ? hours[p] : (DEF_HOURS[progNum(p)] || ''));
+const progKey = p => progNum(p) || (/первой помощи/i.test(p) ? 1 : /безопасн\S* метод/i.test(p) ? 4 : 0);
+const codeFor = p => clean(codes[p] !== undefined && clean(codes[p]) ? codes[p] : (DEF_CODE[progKey(p)] || codes[p] || ''));
+const hoursFor = p => clean(hours[p] !== undefined && clean(hours[p]) ? hours[p] : (DEF_HOURS[progKey(p)] || hours[p] || ''));
 
 function renderProgs(){
   const box = $('pProgs'); box.innerHTML = '';
@@ -2606,7 +2610,11 @@ function render(){
   const wb = $('pWarns');
   if (w.length){ wb.hidden = false; wb.innerHTML = '<h3>Обратите внимание</h3><ul>' + w.map(x => `<li>${x}</li>`).join('') + '</ul>'; }
   else { wb.hidden = true; wb.innerHTML = ''; }
-  $('pGo').disabled = missing || !place || !n;
+  $('pGo').disabled = false;
+  g.problem = !n ? { text: 'В реестре не нашлось ни одного номера протокола. Проверьте колонку «Номер протокола».' }
+    : !place ? { text: 'Впишите место работы, без него не получится назвать файлы.', el: $('pPlace') }
+    : missing ? { text: 'Укажите код и количество часов для каждой программы.', el: document.querySelector('#pProgs input.need') }
+    : null;
   return g;
 }
 function fileName(p){ return `${p.num}_${codeFor(p.prog) || progNum(p.prog)}_${fileSafe(clean($('pPlace').value))}.docx`; }
@@ -2696,6 +2704,12 @@ $('pAgain').onclick = () => fileIn.click();
 $('pGo').onclick = async () => {
   if (!data) return;
   const go = $('pGo'), done = $('pDone');
+  const chk = render();
+  if (chk.problem){
+    done.className = 'done err'; done.textContent = chk.problem.text;
+    if (chk.problem.el){ chk.problem.el.focus(); chk.problem.el.scrollIntoView({ block: 'center' }); }
+    return;
+  }
   go.disabled = true; done.className = 'done'; done.textContent = 'Собираю протоколы…';
   try {
     const res = await buildAll();
