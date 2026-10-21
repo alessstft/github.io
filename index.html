@@ -425,9 +425,9 @@ aside.panel{position:sticky;top:calc(16px + env(safe-area-inset-top,0px));backgr
     <aside class="panel">
       <div class="step-h"><span class="n">3</span><h2>Данные для протоколов</h2></div>
       <div class="field">
-        <label class="lbl" for="pPlace">Место работы в таблице</label>
-        <input type="text" id="pPlace" class="full">
-        <div class="hint" id="pPlaceHint">Берётся из листа «Настройки», строка «Наименование работодателя», и сокращается автоматически. Это же название попадает в имя файла.</div>
+        <span class="lbl">Место работы в таблице</span>
+        <div class="hint" style="margin:-4px 0 12px">Берётся из колонки «Наименование работодателя» (или с листа «Настройки») и сокращается автоматически. Это же название попадает в имя файла.</div>
+        <div id="pPlaces"></div>
       </div>
       <div class="field" id="pRegField">
         <label class="lbl" for="pReg">Регистрационный номер первой строки реестра</label>
@@ -2436,6 +2436,8 @@ const progTitle = p => String(p).replace(/^\s*\d+\s*[.)]\s*/, '').trim();
 function toSerial(v){
   if (typeof v === 'number' && isFinite(v)) return Math.round(v);
   if (v instanceof Date) return Math.round((Date.UTC(v.getFullYear(), v.getMonth(), v.getDate()) - Date.UTC(1899, 11, 30)) / 86400000);
+  const iso = clean(v).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (iso) return Math.round((Date.UTC(+iso[1], +iso[2]-1, +iso[3]) - Date.UTC(1899, 11, 30)) / 86400000);
   const m = clean(v).match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})/);
   if (m){ let y = +m[3]; if (y < 100) y += 2000; return Math.round((Date.UTC(y, +m[2]-1, +m[1]) - Date.UTC(1899, 11, 30)) / 86400000); }
   return null;
@@ -2507,12 +2509,13 @@ function readRegistry(wb){
         if (c.last === undefined && /^фамилия/.test(t)) c.last = j;
         else if (c.first === undefined && /^имя(\s|$)/.test(t)) c.first = j;
         else if (c.middle === undefined && /^отчество/.test(t)) c.middle = j;
+        else if (c.emp === undefined && /(наименование работодател|^работодатель|место работы)/.test(t)) c.emp = j;
         else if (c.pos === undefined && /(должност|профессия)/.test(t)) c.pos = j;
         else if (c.prog === undefined && /программ/.test(t)) c.prog = j;
         else if (c.res === undefined && /результат/.test(t)) c.res = j;
-        else if (c.proto === undefined && /протокол/.test(t)) c.proto = j;
-        else if (c.reg === undefined && /регистрацион/.test(t)) c.reg = j;
-        else if (c.date === undefined && /^дата( проверки)?$/.test(t)) c.date = j;
+        else if (c.date === undefined && /^дата/.test(t) && !/(рожд|создан|начал|выдач|окончан|загруз|рождени)/.test(t)) c.date = j;
+        else if (c.reg === undefined && /(регистрационн|номер в реестре|№ в реестре)/.test(t)) c.reg = j;
+        else if (c.proto === undefined && /протокол/.test(t) && !/^дата/.test(t)) c.proto = j;
       });
       if (c.last === undefined || c.first === undefined || c.proto === undefined) continue;
       const recs = [];
@@ -2529,6 +2532,7 @@ function readRegistry(wb){
           date: c.date !== undefined ? toSerial(row[c.date]) : null,
           proto: clean(row[c.proto]),
           reg: c.reg !== undefined ? clean(row[c.reg]) : '',
+          emp: c.emp !== undefined ? clean(row[c.emp]) : '',
           idx: recs.length, line: r + 1
         });
       }
@@ -2557,7 +2561,7 @@ function groups(){
   for (const r of data.recs){
     if (!r.proto){ warns.push(`Строка ${r.line} (${esc(r.fio)}): нет номера протокола, строка пропущена.`); continue; }
     let g = map.get(r.proto);
-    if (!g){ g = { num: r.proto, date: r.date, prog: r.prog, rows: [] }; map.set(r.proto, g); }
+    if (!g){ g = { num: r.proto, date: r.date, prog: r.prog, emp: r.emp || data.employer || '', rows: [] }; map.set(r.proto, g); }
     else {
       if (r.prog !== g.prog) warns.push(`Протокол № ${esc(r.proto)}: у слушателей разные программы, в протокол пойдёт первая.`);
       if (r.date !== g.date) warns.push(`Протокол № ${esc(r.proto)}: у слушателей разные даты, в протокол пойдёт первая.`);
@@ -2576,6 +2580,20 @@ const progKey = p => progNum(p) || (/первой помощи/i.test(p) ? 1 : /
 const codeFor = p => clean(codes[p] !== undefined && clean(codes[p]) ? codes[p] : (DEF_CODE[progKey(p)] || codes[p] || ''));
 const hoursFor = p => clean(hours[p] !== undefined && clean(hours[p]) ? hours[p] : (DEF_HOURS[progKey(p)] || hours[p] || ''));
 
+const placeFor = emp => clean(places[emp] !== undefined ? places[emp] : shortPlace(emp));
+function employers(){ return [...new Set(data.recs.map(r => r.emp || data.employer || ''))]; }
+function renderPlaces(){
+  const box = $('pPlaces'); box.innerHTML = '';
+  employers().forEach((emp, i) => {
+    const d = document.createElement('div'); d.className = 'prog-row';
+    d.innerHTML = `<label class="prog" for="pp${i}" title="${esc(emp)}">${emp ? esc(emp) : 'Работодатель в реестре не указан'}</label><input type="text" id="pp${i}" class="full" placeholder="СПб ГБУЗ &quot;…&quot;">`;
+    const inp = d.querySelector('input');
+    inp.value = placeFor(emp);
+    inp.addEventListener('input', () => { places[emp] = clean(inp.value); store(LS_PLACE, places); render(); });
+    box.appendChild(d);
+  });
+}
+
 function renderProgs(){
   const box = $('pProgs'); box.innerHTML = '';
   const progs = [...new Set(data.recs.map(r => r.prog).filter(Boolean))];
@@ -2592,8 +2610,8 @@ function renderProgs(){
 
 function render(){
   const g = groups();
-  const place = clean($('pPlace').value);
-  document.querySelectorAll('#pProgs .prog-row').forEach(row => row.querySelectorAll('input').forEach(inp => inp.classList.toggle('need', !clean(inp.value))));
+  document.querySelectorAll('#pProgs .prog-row input, #pPlaces input').forEach(inp => inp.classList.toggle('need', !clean(inp.value)));
+  const place = g.list.every(p => placeFor(p.emp));
   let html = '<table><thead><tr><th scope="col">Протокол</th><th scope="col">Дата проверки</th><th scope="col">Программа</th><th scope="col">Слушатели</th><th scope="col">Файл</th></tr></thead><tbody>';
   let missing = false;
   for (const p of g.list){
@@ -2606,18 +2624,18 @@ function render(){
   $('pMeta').textContent = `${n} ${plural(n, 'протокол', 'протокола', 'протоколов')} из ${data.recs.length} ${plural(data.recs.length, 'строки', 'строк', 'строк')} реестра.`;
   const w = g.warns.slice();
   if (missing) w.unshift('Укажите код и количество часов для всех программ, поля отмечены красным справа.');
-  if (!place) w.unshift(data.employer ? 'Укажите место работы.' : 'В реестре на листе «Настройки» не заполнено «Наименование работодателя». Впишите место работы вручную или заполните это поле в реестре.');
+  if (!place) w.unshift('Не найдено наименование работодателя. Впишите место работы в поле справа, отмеченное красным.');
   const wb = $('pWarns');
   if (w.length){ wb.hidden = false; wb.innerHTML = '<h3>Обратите внимание</h3><ul>' + w.map(x => `<li>${x}</li>`).join('') + '</ul>'; }
   else { wb.hidden = true; wb.innerHTML = ''; }
   $('pGo').disabled = false;
   g.problem = !n ? { text: 'В реестре не нашлось ни одного номера протокола. Проверьте колонку «Номер протокола».' }
-    : !place ? { text: 'Впишите место работы, без него не получится назвать файлы.', el: $('pPlace') }
+    : !place ? { text: 'Впишите место работы, без него не получится назвать файлы.', el: document.querySelector('#pPlaces input.need') }
     : missing ? { text: 'Укажите код и количество часов для каждой программы.', el: document.querySelector('#pProgs input.need') }
     : null;
   return g;
 }
-function fileName(p){ return `${p.num}_${codeFor(p.prog) || progNum(p.prog)}_${fileSafe(clean($('pPlace').value))}.docx`; }
+function fileName(p){ return `${p.num}_${codeFor(p.prog) || progNum(p.prog)}_${fileSafe(placeFor(p.emp))}.docx`; }
 
 /* ---------- DOCX generation ---------- */
 let tplZipP = null;
@@ -2661,9 +2679,8 @@ async function makeDocx(p, place){
 }
 async function buildAll(){
   const g = render();
-  const place = clean($('pPlace').value);
   const out = new JSZip();
-  for (const p of g.list) out.file(fileName(p), await makeDocx(p, place));
+  for (const p of g.list) out.file(fileName(p), await makeDocx(p, placeFor(p.emp)));
   const blob = await out.generateAsync({ type: 'blob', compression: 'STORE', mimeType: 'application/zip' });
   return { blob, count: g.list.length, list: g.list };
 }
@@ -2679,7 +2696,7 @@ async function handle(file){
     if (!reg) throw new Error('не нашлись колонки «Фамилия», «Имя» и «Номер протокола»');
     if (!reg.recs.length) throw new Error('в реестре нет ни одной строки со слушателями');
     data = Object.assign(reg, { fileName: file.name });
-    $('pPlace').value = reg.employer ? (places[reg.employer] || shortPlace(reg.employer)) : '';
+    renderPlaces();
     $('pRegField').hidden = reg.hasReg;
     renderProgs(); render();
     $('pDone').textContent = ''; $('pDone').className = 'done';
@@ -2697,7 +2714,6 @@ const drop = $('pDrop'), fileIn = $('pFile');
 ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
 drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) handle(f); });
 fileIn.addEventListener('change', () => { if (fileIn.files[0]) handle(fileIn.files[0]); fileIn.value = ''; });
-$('pPlace').addEventListener('input', () => { if (!data) return; if (data.employer){ places[data.employer] = clean($('pPlace').value); store(LS_PLACE, places); } render(); });
 $('pReg').addEventListener('input', () => { if (data) render(); });
 $('pAgain').onclick = () => fileIn.click();
 
@@ -2714,7 +2730,8 @@ $('pGo').onclick = async () => {
   try {
     const res = await buildAll();
     const month = MONTHS[new Date().getMonth()];
-    const filename = `Протоколы_${fileSafe(clean($('pPlace').value)).replace(/_+/g, '_')}${month ? '_' + month : ''}.zip`;
+    const emps = [...new Set(res.list.map(p => placeFor(p.emp)))];
+    const filename = `Протоколы_${emps.length === 1 ? fileSafe(emps[0]).replace(/_+/g, '_') + '_' : ''}${month}.zip`;
     const dl = await window.__dlP;
     let saved = false;
     if (dl){
@@ -2738,7 +2755,7 @@ $('pGo').onclick = async () => {
   } finally { go.disabled = false; }
 };
 
-window.__protocols = { readRegistry, shortPlace, buildAll, render, renderProgs, setData: d => { data = d; } };
+window.__protocols = { readRegistry, shortPlace, buildAll, render, renderProgs, renderPlaces, setData: d => { data = d; } };
 })();
 </script>
 </body>
